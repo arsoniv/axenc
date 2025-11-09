@@ -1,0 +1,29 @@
+import "helper.ax";
+
+int main() {
+  Counter c;
+  c.init();
+
+  c.addOne();
+  c.add(2);
+  c.sub(add(1, 2));
+
+  int result;
+  result = multiply(3, 4);
+  c.add(result);
+
+  Calculator calc;
+  calc.init();
+  calc.setValue(10);
+
+  int computed;
+  computed = calc.compute(5, 3);
+  c.sub(computed);
+
+  c.reset();
+  c.add(5);
+  c.multiply(2);
+  c.sub(divide(20, 2));
+
+  return 0;
+}

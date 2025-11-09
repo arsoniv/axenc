@@ -1,0 +1,71 @@
+
+int add(int a, int b) {
+  return a + b;
+}
+
+int multiply(int a, int b) {
+  return a * b;
+}
+
+int subtract(int a, int b) {
+  return a - b;
+}
+
+int divide(int a, int b) {
+  return a / b;
+}
+
+class Counter {
+  int total;
+
+  void init() {
+    total = 0;
+  }
+
+  void addOne() {
+    total = total + 1;
+  }
+
+  void add(int i) {
+    total = total + i;
+  }
+
+  void sub(int i) {
+    total = total - i;
+  }
+
+  void multiply(int i) {
+    total = total * i;
+  }
+
+  void reset() {
+    total = 0;
+  }
+
+  int getTotal() {
+    return total;
+  }
+}
+
+class Calculator {
+  int value;
+
+  void init() {
+    value = 0;
+  }
+
+  void setValue(int v) {
+    value = v;
+  }
+
+  int compute(int a, int b) {
+    int result;
+    result = add(a, b);
+    result = multiply(result, 2);
+    return result;
+  }
+
+  int getValue() {
+    return value;
+  }
+}

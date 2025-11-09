@@ -1,0 +1,23 @@
+build/
+.cache/
+
+# Example project builds
+examples/*/build/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled files
+*.ll
+*.o
+*.a
+*.so
+*.exe
