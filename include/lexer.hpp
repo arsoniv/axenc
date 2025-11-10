@@ -23,6 +23,7 @@ enum class TokenType {
   Import,
   Class,
   Typedef,
+  Intdef,
 
   // symbols
   LParen,
@@ -54,7 +55,7 @@ inline const std::unordered_map<std::string, TokenType> keywordMap = {
     {"return", TokenType::Return},   {"break", TokenType::Break},   {"continue", TokenType::Continue},
     {"if", TokenType::If},           {"else", TokenType::Else},     {"while", TokenType::While},
     {"ptr", TokenType::Ptr},         {"import", TokenType::Import}, {"class", TokenType::Class},
-    {"typedef", TokenType::Typedef},
+    {"typedef", TokenType::Typedef}, {"intdef", TokenType::Intdef},
 };
 
 inline const std::unordered_map<char, TokenType> symbolMap = {

@@ -25,5 +25,5 @@ int main() {
   c.multiply(2);
   c.sub(divide(20, 2));
 
-  return 0;
+  return sixteen;
 }

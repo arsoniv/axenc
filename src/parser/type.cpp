@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <memory>
 
 #include "lexer.hpp"
@@ -27,7 +26,11 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
     // parse array mod
     if (lexer_->peekT(lexer::TokenType::LBracket)) {
       lexer_->consume();
-      arrayLen = atoi(expect(lexer::TokenType::IntLit).src.data());
+      std::string intStr = expect(lexer::TokenType::IntLit).src;
+
+      int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
+      arrayLen = std::stoi(intStr, nullptr, base);
+
       expect(lexer::TokenType::RBracket);
     }
 

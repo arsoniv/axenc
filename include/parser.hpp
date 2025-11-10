@@ -170,6 +170,8 @@ private:
     emitSyntaxError("Invalid target type in typedef");
   }
 
+  void insertIntDef(std::string &alias, int targetInt) { intDefs_[alias] = targetInt; }
+
   std::string currentClassName_;
   std::string currentFileName_;
 
@@ -185,6 +187,9 @@ private:
 
   // for types
   std::map<std::string, std::shared_ptr<ast::TypeNode>> types_;
+
+  // for int defs
+  std::map<std::string, int> intDefs_;
 
   // for tracking imports
   std::set<std::string> importedFiles_;

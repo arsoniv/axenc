@@ -95,6 +95,20 @@ void Parser::parseFile() {
       expect(lexer::TokenType::Semi);
       break;
     }
+    case lexer::TokenType::Intdef: {
+      expect(lexer::TokenType::Intdef);
+      std::string alias = expect(lexer::TokenType::Identifier).src;
+      std::string intStr = expect(lexer::TokenType::IntLit).src;
+
+      int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
+      int targetInt = std::stoi(intStr, nullptr, base);
+
+      insertIntDef(alias, targetInt);
+
+      expect(lexer::TokenType::Semi);
+      break;
+    }
+
     case lexer::TokenType::Class: {
       // parse class
       lexer_->consume();

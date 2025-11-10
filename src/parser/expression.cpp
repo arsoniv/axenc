@@ -52,8 +52,11 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
 
 std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::TokenType terminator) {
   switch (lexer_->peek().type) {
-  case lexer::TokenType::IntLit:
-    return std::make_unique<ast::IntLiteral>(std::stoi(expect(lexer::TokenType::IntLit).src));
+  case lexer::TokenType::IntLit: {
+    std::string intStr = expect(lexer::TokenType::IntLit).src;
+    int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
+    return std::make_unique<ast::IntLiteral>(std::stoi(intStr, nullptr, base));
+  }
 
   case lexer::TokenType::StringLit:
     return std::make_unique<ast::StringLiteral>(expect(lexer::TokenType::StringLit).src);
@@ -66,7 +69,9 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
     if (lexer_->peekT(lexer::TokenType::FloatLit)) {
       return std::make_unique<ast::FloatLiteral>(0 - std::stof(expect(lexer::TokenType::FloatLit).src));
     } else {
-      return std::make_unique<ast::IntLiteral>(0 - std::stoi(expect(lexer::TokenType::IntLit).src));
+      std::string intStr = expect(lexer::TokenType::IntLit).src;
+      int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
+      return std::make_unique<ast::IntLiteral>(0 - std::stoi(intStr, nullptr, base));
     }
 
   case lexer::TokenType::Ampersand:
@@ -103,6 +108,10 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
 
       return std::make_unique<ast::FunctionCall>(name, std::move(functionArgs), functionReturnType->isSigned());
     } else {
+      if (lexer_->peekT(lexer::TokenType::Identifier))
+        if (intDefs_.contains(lexer_->peek().src))
+          return std::make_unique<ast::IntLiteral>(intDefs_.at(expect(lexer::TokenType::Identifier).src));
+
       return parseValue().first;
     }
   }

@@ -71,6 +71,22 @@ Token Lexer::nextToken() {
 
     if (std::isdigit(peekChar())) {
       std::string newIntLiteral;
+
+      // check for hex literal
+      if (peekChar() == '0' && srcCursor_ + 1 < src_.length() && (peekChar(1) == 'x' || peekChar(1) == 'X')) {
+        newIntLiteral += consumeChar();
+        newIntLiteral += consumeChar();
+
+        while (srcCursor_ < src_.length() && std::isxdigit(peekChar())) {
+          newIntLiteral += consumeChar();
+        }
+
+        newToken.type = TokenType::IntLit;
+        newToken.src = std::move(newIntLiteral);
+        return newToken;
+      }
+
+      // regular decimal literal
       while (srcCursor_ < src_.length() && std::isdigit(peekChar())) {
         newIntLiteral += consumeChar(); // int literal digits are consumed
       }
