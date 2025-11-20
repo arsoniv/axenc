@@ -77,9 +77,9 @@ int main(int argc, char **argv) {
       analysisCtx.currentFile = srcPath.string();
       analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
 
-      // analyze all classes first (so that functions can register them
-      for (const auto &structure : *parser->getClasses()) {
-        analysisCtx.registerClass(structure->getName(), structure);
+      // analyze all classes first (so that functions can use them)
+      for (const auto &classNode : *parser->getClasses()) {
+        classNode->analyze(analysisCtx);
       }
 
       // analyze all functions

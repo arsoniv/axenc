@@ -18,6 +18,7 @@ public:
       : name_(name), members_(std::move(members)) {}
 
   llvm::StructType *codeGen(CodegenContext &ctx);
+  void analyze(AnalysisContext &ctx);
 
   std::shared_ptr<ast::TypeNode> lookupMemberType(const std::string &name) const {
     auto it = members_.find(name);
