@@ -375,6 +375,19 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
       ctx.emitCodegenError("Division requires numeric operands of the same type");
     }
 
+  case BinaryOperationType::Modulo:
+    if (L->getType()->isFloatingPointTy() && R->getType()->isFloatingPointTy()) {
+      return ctx.builder.CreateFRem(L, R, "fremtmp");
+    } else if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      if (operandIsSigned) {
+        return ctx.builder.CreateSRem(L, R, "sremtmp");
+      } else {
+        return ctx.builder.CreateURem(L, R, "uremtmp");
+      }
+    } else {
+      ctx.emitCodegenError("Modulo requires numeric operands of the same type");
+    }
+
   case BinaryOperationType::Less:
     if (L->getType()->isPointerTy() && R->getType()->isPointerTy()) {
       return ctx.builder.CreateICmpULT(L, R);

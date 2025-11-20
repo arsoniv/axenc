@@ -211,6 +211,7 @@ enum class BinaryOperationType {
   Subtract,
   Multiply,
   Divide,
+  Modulo,
   Less,
   More,
   Equal,

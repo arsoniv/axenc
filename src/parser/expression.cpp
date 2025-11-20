@@ -14,6 +14,7 @@ static int getOperatorPrecedence(lexer::TokenType type) {
   switch (type) {
   case lexer::TokenType::Asterisk:
   case lexer::TokenType::Slash:
+  case lexer::TokenType::Percent:
     return 20;
   case lexer::TokenType::Plus:
   case lexer::TokenType::Minus:
@@ -38,6 +39,8 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
     return ast::BinaryOperationType::Multiply;
   case lexer::TokenType::Slash:
     return ast::BinaryOperationType::Divide;
+  case lexer::TokenType::Percent:
+    return ast::BinaryOperationType::Modulo;
   case lexer::TokenType::Less:
     return ast::BinaryOperationType::Less;
   case lexer::TokenType::Greater:
