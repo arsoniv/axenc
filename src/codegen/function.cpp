@@ -1,9 +1,11 @@
 #include <cstdio>
+#include <memory>
 #include <vector>
 
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
+#include <llvm/Support/Casting.h>
 
 #include "nodes/context.hpp"
 #include "nodes/function.hpp"
@@ -19,23 +21,22 @@ void FunctionNode::generateFunctionBody(CodegenContext &ctx, llvm::Function *fun
   ctx.pushScope();
 
   // copy parameters to stack variables to make them mutable
+  auto params = getParams();
   auto argIt = function->arg_begin();
-  for (size_t i = 0; i < params_->size(); ++i, ++argIt) {
+  for (size_t i = 0; i < params.size(); ++i, ++argIt) {
     llvm::Argument *arg = &(*argIt);
-    arg->setName(params_->at(i).first);
+    arg->setName(params.at(i).first);
 
-    llvm::AllocaInst *alloca = ctx.builder.CreateAlloca(arg->getType(), nullptr, params_->at(i).first);
+    llvm::AllocaInst *alloca = ctx.builder.CreateAlloca(arg->getType(), nullptr, params.at(i).first);
 
     if (!alloca) {
-      error::reportError(error::ErrorType::Codegen,
-                         "Failed to allocate parameter '" + params_->at(i).first + "' in function '" + name_ + "'");
       ctx.popScope();
-      return;
+      ctx.emitCodegenError("Failed to allocate parameter '" + params.at(i).first + "' in function '" + name_ + "'");
     }
 
     ctx.builder.CreateStore(arg, alloca);
 
-    ctx.declareVariable(params_->at(i).first, alloca);
+    ctx.declareVariable(params.at(i).first, alloca);
   }
 
   // generate body
@@ -44,13 +45,15 @@ void FunctionNode::generateFunctionBody(CodegenContext &ctx, llvm::Function *fun
 
     // check if statement is a terminator
     llvm::BasicBlock *currentBlock = ctx.builder.GetInsertBlock();
-    if (currentBlock->getTerminator())
+    if (currentBlock->getTerminator()) {
       break;
+    }
   }
 
   // implicitly return return void if block has no terminator
-  if (!ctx.builder.GetInsertBlock()->getTerminator())
+  if (!ctx.builder.GetInsertBlock()->getTerminator()) {
     ctx.builder.CreateRetVoid();
+  }
 
   ctx.popScope();
 }
@@ -59,30 +62,18 @@ llvm::Function *FunctionNode::codeGen(CodegenContext &ctx) {
 
   llvm::Type *type = type_->codeGen(ctx);
 
-  auto parameters = std::vector<llvm::Type *>();
-
-  for (auto &param : *params_) {
-    parameters.emplace_back(param.second->codeGen(ctx));
-  }
-
-  auto functionType = llvm::FunctionType::get(type, parameters, false);
+  auto functionType = llvm::dyn_cast<llvm::FunctionType>(type);
 
   if (!functionType) {
-    error::reportError(error::ErrorType::Codegen, "Failed to create function type for '" + name_ + "'");
-    return nullptr;
+    ctx.emitCodegenError("Failed to create function type for '" + name_ + "'");
   }
 
   llvm::Function *function;
 
-  if (isPublic_) {
-    function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, name_, ctx.module.get());
-  } else {
-    function = llvm::Function::Create(functionType, llvm::Function::InternalLinkage, name_, ctx.module.get());
-  }
+  function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, name_, ctx.module.get());
 
   if (!function) {
-    error::reportError(error::ErrorType::Codegen, "Failed to create function '" + name_ + "'");
-    return nullptr;
+    ctx.emitCodegenError("Failed to create function '" + name_ + "'");
   }
 
   // generate body only if it exists, functions can be bodyless.

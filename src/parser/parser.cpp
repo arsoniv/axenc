@@ -21,7 +21,18 @@ void Parser::parse() {
   currentFileName_ = rootFilePath_;
 
   if (!rootFilePath_.empty()) {
-    importedFiles_.insert(std::filesystem::canonical(rootFilePath_).string());
+    // the file might not exist on disk (lsp)
+    try {
+      if (std::filesystem::exists(rootFilePath_)) {
+        importedFiles_.insert(std::filesystem::canonical(rootFilePath_).string());
+      } else {
+        // file doesn't exist, use path as-is
+        importedFiles_.insert(rootFilePath_);
+      }
+    } catch (const std::filesystem::filesystem_error &) {
+      // if canonical fails, use path as-is
+      importedFiles_.insert(rootFilePath_);
+    }
   }
 
   processImports();
@@ -47,12 +58,13 @@ void Parser::processImports() {
       }
 
       if (!std::filesystem::exists(importPath))
-        emitSemanticError("Cannot import nonexistent file: '" + importFile + "'");
+        emitSyntaxError("Cannot import nonexistent file: '" + importFile + "'");
 
       std::string canonicalPath = std::filesystem::canonical(importPath).string();
 
-      if (importedFiles_.find(canonicalPath) != importedFiles_.end())
+      if (importedFiles_.find(canonicalPath) != importedFiles_.end()) {
         continue;
+      }
 
       importedFiles_.insert(canonicalPath);
 
@@ -88,9 +100,13 @@ void Parser::parseFile() {
     case lexer::TokenType::Typedef: {
       expect(lexer::TokenType::Typedef);
       std::string alias = expect(lexer::TokenType::Identifier).src;
-      std::string targetType = expect(lexer::TokenType::Identifier).src;
+      auto targetType = parseType();
 
-      insertTypeDef(alias, std::move(targetType));
+      if (!targetType) {
+        emitSyntaxError("Invalid target type in typedef");
+      }
+
+      insertTypeDef(alias, targetType);
 
       expect(lexer::TokenType::Semi);
       break;
@@ -100,10 +116,17 @@ void Parser::parseFile() {
       std::string alias = expect(lexer::TokenType::Identifier).src;
       std::string intStr = expect(lexer::TokenType::IntLit).src;
 
+      // check for 'u' (unsigned) suffix
+      bool isSigned = true;
+      if (!intStr.empty() && intStr.back() == 'u') {
+        isSigned = false;
+        intStr.pop_back(); // remove suffix
+      }
+
       int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
       int targetInt = std::stoi(intStr, nullptr, base);
 
-      insertIntDef(alias, targetInt);
+      insertIntDef(alias, targetInt, isSigned);
 
       expect(lexer::TokenType::Semi);
       break;
@@ -158,8 +181,9 @@ void Parser::parseClass() {
         auto token = expect(lexer::TokenType::Identifier);
         validateIdentifier(token.src);
       }
-      if (lexer_->peekT(lexer::TokenType::Comma))
+      if (lexer_->peekT(lexer::TokenType::Comma)) {
         lexer_->consume();
+      }
     }
     expect(lexer::TokenType::RParen);
 
@@ -202,7 +226,7 @@ void Parser::parseClass() {
   parseFunctions();
 }
 
-// NOTE: this function only parses class functions. it only parses within the class
+// NOTE: this function only parses class functions (parses within a class)
 void Parser::parseFunctions() {
 
   while (lexer_->peek().type != lexer::TokenType::EndOfFile && lexer_->peek().type != lexer::TokenType::RBrace) {
@@ -210,6 +234,7 @@ void Parser::parseFunctions() {
 
     case lexer::TokenType::Typedef:
       lexer_->consume();
+      break;
 
     default:
       if (lexer_->peekT(lexer::TokenType::LParen, getNextTypeLength() + 1)) {

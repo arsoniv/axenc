@@ -1,13 +1,22 @@
-#include <cstdio>
-#include <cstdlib>
-
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Type.h>
 
 #include "nodes/context.hpp"
-#include "nodes/types.hpp"
+#include "nodes/type.hpp"
 
 namespace axen::ast {
+
+llvm::Type *FunctionTypeNode::codeGen(CodegenContext &ctx) {
+  llvm::Type *returnType = returnType_->codeGen(ctx);
+
+  auto parameterTypes = std::vector<llvm::Type *>();
+
+  for (auto &param : parameters_) {
+    parameterTypes.emplace_back(param->codeGen(ctx));
+  }
+
+  return llvm::FunctionType::get(returnType, parameterTypes, false);
+}
 
 llvm::Type *PrimitiveTypeNode::codeGen(CodegenContext &ctx) {
   switch (type_) {
@@ -33,8 +42,7 @@ llvm::Type *PrimitiveTypeNode::codeGen(CodegenContext &ctx) {
   case PrimitiveType::Quad:
     return llvm::Type::getFP128Ty(ctx.llvmContext);
   default:
-    error::reportError(error::ErrorType::Internal, "Could not find type, how did we get here?");
-    return nullptr; // unreachable
+    ctx.emitInternalError("Could not find type, how did we get here?");
   }
 }
 

@@ -1,6 +1,9 @@
 import "helper.ax";
 
 int main() {
+
+  ptr int(int, int) addptr = &add;
+
   Counter c;
   c.init();
 
@@ -25,5 +28,5 @@ int main() {
   c.multiply(2);
   c.sub(divide(20, 2));
 
-  return sixteen;
+  return addptr(2, 21);
 }

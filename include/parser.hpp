@@ -13,7 +13,7 @@
 #include "nodes/expression.hpp"
 #include "nodes/function.hpp"
 #include "nodes/statement.hpp"
-#include "nodes/types.hpp"
+#include "nodes/type.hpp"
 
 namespace axen::parser {
 
@@ -24,7 +24,7 @@ public:
 
     registerPrimitiveType("bool", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Bool, false));
 
-    registerPrimitiveType("void", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false));
+    registerPrimitiveType("void", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, true));
 
     registerPrimitiveType("char", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, true));
     registerPrimitiveType("uchar", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, false));
@@ -49,6 +49,17 @@ public:
   const std::vector<std::unique_ptr<ast::FunctionNode>> *getFunctions() const { return &functions_; }
   std::vector<std::unique_ptr<ast::FunctionNode>> &getFunctionsMut() { return functions_; }
   const std::vector<std::shared_ptr<ast::ClassNode>> *getStructs() const { return &classes_; }
+  const std::vector<std::map<std::string, std::shared_ptr<ast::TypeNode>>> &getScopes() const { return scopes; }
+
+  std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+      auto found = it->find(name);
+      if (found != it->end()) {
+        return found->second;
+      }
+    }
+    return nullptr;
+  }
 
 private:
   void parseClass();
@@ -67,20 +78,20 @@ private:
   int getNextTypeLength();
   std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> parseValue();
 
-  inline const void emitSyntaxError(const std::string &msg) {
+  inline void emitSyntaxError(const std::string &msg) {
     error::SourceLocation loc(currentFileName_, currentClassName_, lexer_->peek().row, lexer_->peek().col,
                               lexer_->peek().src);
     error::reportError(error::ErrorType::Syntax, msg, &loc);
   }
 
-  inline const void emitSemanticError(const std::string &msg) {
+  inline void emitSemanticError(const std::string &msg) {
     error::SourceLocation loc(currentFileName_, currentClassName_, lexer_->peek().row, lexer_->peek().col,
                               lexer_->peek().src);
     error::reportError(error::ErrorType::Semantic, msg, &loc);
   }
 
   // parsing utils
-  inline const lexer::Token expect(lexer::TokenType t) {
+  inline lexer::Token expect(lexer::TokenType t) {
     if (lexer_->peek().type != t) {
 
       std::string expectedString = "";
@@ -116,17 +127,6 @@ private:
   void indexVariableType(const std::string &name, std::shared_ptr<ast::TypeNode> &type) { scopes.back()[name] = type; }
   bool variableExistsInCurrentScope(const std::string &name) { return scopes.back().find(name) != scopes.back().end(); }
 
-  /// returns variable type from name. returns nullptr if variable does not exist
-  std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {
-    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-      auto found = it->find(name);
-      if (found != it->end()) {
-        return found->second;
-      }
-    }
-    return nullptr;
-  }
-
   // type utils
   void registerPrimitiveType(const std::string &name, std::shared_ptr<ast::PrimitiveTypeNode> type) {
     types_.insert({name, type});
@@ -151,26 +151,30 @@ private:
     return nullptr;
   }
 
-  void insertTypeDef(std::string &alias, const std::string &&targetName) {
-
-    auto targetType = getTypeNode(targetName);
-
-    auto targetPrimitiveType = std::dynamic_pointer_cast<ast::PrimitiveTypeNode>(targetType);
-    if (targetPrimitiveType) {
-      registerPrimitiveType(alias, targetPrimitiveType);
-      return;
+  std::shared_ptr<ast::FunctionTypeNode> lookupFunctionType(const std::string &name) {
+    for (auto &func : functions_) {
+      if (func->getName() == name) {
+        auto params = func->getParams();
+        std::vector<std::shared_ptr<ast::TypeNode>> paramTypes;
+        for (const auto &param : params) {
+          paramTypes.push_back(param.second);
+        }
+        return std::make_shared<ast::FunctionTypeNode>(func->getReturnType(), paramTypes);
+      }
     }
-
-    auto targetClassType = std::dynamic_pointer_cast<ast::ClassNode>(targetType);
-    if (targetClassType) {
-      registerStructType(alias, targetClassType);
-      return;
-    }
-
-    emitSyntaxError("Invalid target type in typedef");
+    return nullptr;
   }
 
-  void insertIntDef(std::string &alias, int targetInt) { intDefs_[alias] = targetInt; }
+  void insertTypeDef(std::string &alias, std::shared_ptr<ast::TypeNode> targetType) {
+    if (!targetType) {
+      emitSyntaxError("Invalid target type in typedef");
+      return;
+    }
+
+    types_.insert({alias, targetType});
+  }
+
+  void insertIntDef(std::string &alias, int targetInt, bool isSigned) { intDefs_[alias] = {targetInt, isSigned}; }
 
   std::string currentClassName_;
   std::string currentFileName_;
@@ -189,7 +193,7 @@ private:
   std::map<std::string, std::shared_ptr<ast::TypeNode>> types_;
 
   // for int defs
-  std::map<std::string, int> intDefs_;
+  std::map<std::string, std::pair<int, bool>> intDefs_; // value, isSigned
 
   // for tracking imports
   std::set<std::string> importedFiles_;

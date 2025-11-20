@@ -45,7 +45,7 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
   case lexer::TokenType::Equals:
     return ast::BinaryOperationType::Equal;
   default:
-    emitSemanticError("Invalid binary operator");
+    emitSyntaxError("Invalid binary operator");
     return ast::BinaryOperationType::Add; // unreachable
   }
 }
@@ -53,16 +53,42 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
 std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::TokenType terminator) {
   switch (lexer_->peek().type) {
   case lexer::TokenType::IntLit: {
-    std::string intStr = expect(lexer::TokenType::IntLit).src;
-    int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
-    return std::make_unique<ast::IntLiteral>(std::stoi(intStr, nullptr, base));
+    auto tok = expect(lexer::TokenType::IntLit);
+
+    // check for 'u' unsigned suffix
+    bool isUnsigned = false;
+    std::string numStr = tok.src;
+    if (!numStr.empty() && numStr.back() == 'u') {
+      isUnsigned = true;
+      numStr.pop_back(); // remove the 'u' suffix
+    }
+
+    int base = (numStr.size() > 2 && numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) ? 16 : 10;
+    auto node = std::make_unique<ast::IntLiteral>(std::stoi(numStr, nullptr, base), !isUnsigned);
+    node->setLocation(tok.row, tok.col);
+    return node;
   }
 
-  case lexer::TokenType::StringLit:
-    return std::make_unique<ast::StringLiteral>(expect(lexer::TokenType::StringLit).src);
+  case lexer::TokenType::StringLit: {
+    auto tok = expect(lexer::TokenType::StringLit);
+    auto node = std::make_unique<ast::StringLiteral>(tok.src);
+    node->setLocation(tok.row, tok.col);
+    return node;
+  }
 
-  case lexer::TokenType::FloatLit:
-    return std::make_unique<ast::FloatLiteral>(std::stof(expect(lexer::TokenType::FloatLit).src));
+  case lexer::TokenType::FloatLit: {
+    auto tok = expect(lexer::TokenType::FloatLit);
+    auto node = std::make_unique<ast::FloatLiteral>(std::stof(tok.src));
+    node->setLocation(tok.row, tok.col);
+    return node;
+  }
+
+  case lexer::TokenType::Nullptr: {
+    auto tok = expect(lexer::TokenType::Nullptr);
+    auto node = std::make_unique<ast::NullptrLiteral>();
+    node->setLocation(tok.row, tok.col);
+    return node;
+  }
 
   case lexer::TokenType::Minus:
     lexer_->consume();
@@ -70,15 +96,23 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
       return std::make_unique<ast::FloatLiteral>(0 - std::stof(expect(lexer::TokenType::FloatLit).src));
     } else {
       std::string intStr = expect(lexer::TokenType::IntLit).src;
+
+      // check for 'u' (unsigned) suffix
+      bool isUnsigned = false;
+      if (!intStr.empty() && intStr.back() == 'u') {
+        isUnsigned = true;
+        intStr.pop_back(); // remove the 'u' suffix
+      }
+
       int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
-      return std::make_unique<ast::IntLiteral>(0 - std::stoi(intStr, nullptr, base));
+      return std::make_unique<ast::IntLiteral>(0 - std::stoi(intStr, nullptr, base), !isUnsigned);
     }
 
   case lexer::TokenType::Ampersand:
   case lexer::TokenType::Dollar:
   case lexer::TokenType::Identifier: {
     if (lexer_->peekT(lexer::TokenType::LParen, 1)) {
-      // function call
+      // function call or function pointer call
 
       auto nameToken = expect(lexer::TokenType::Identifier);
       validateIdentifier(nameToken.src);
@@ -94,23 +128,40 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
       }
       lexer_->consume();
 
-      auto functionReturnType = Parser::lookupFunctionReturnType(name);
+      // check for function pointer variable
+      auto varType = Parser::lookupVariableType(name);
+      if (varType) {
+        // could be a function pointer
+        auto varRef = std::make_unique<ast::VariableReference>(name, varType);
+        varRef->setLocation(nameToken.row, nameToken.col);
 
-      if (!functionReturnType)
-        emitSemanticError("Call to undefined function '" + name + "'");
+        auto funcRef = std::make_unique<ast::FunctionReference>(std::move(varRef), varType);
+        funcRef->setLocation(nameToken.row, nameToken.col);
 
-      // non-detatched member function calls must be made using a instance
-      if (!currentClassName_.empty() && name.find("_") != std::string::npos) {
-        std::string prefix = currentClassName_ + "_";
-        if (name.find(prefix) == 0)
-          emitSemanticError("Cannot call member function '" + name + "' without an instance of the class");
+        auto node = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), varType);
+        node->setLocation(nameToken.row, nameToken.col);
+        return node;
+      } else {
+        // normal function
+        auto functionReturnType = Parser::lookupFunctionReturnType(name);
+        auto type = functionReturnType ? functionReturnType
+                                       : std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false);
+
+        auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name));
+        funcRef->setLocation(nameToken.row, nameToken.col);
+
+        auto node = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), type);
+        node->setLocation(nameToken.row, nameToken.col);
+        return node;
       }
-
-      return std::make_unique<ast::FunctionCall>(name, std::move(functionArgs), functionReturnType->isSigned());
     } else {
-      if (lexer_->peekT(lexer::TokenType::Identifier))
-        if (intDefs_.contains(lexer_->peek().src))
-          return std::make_unique<ast::IntLiteral>(intDefs_.at(expect(lexer::TokenType::Identifier).src));
+      if (lexer_->peekT(lexer::TokenType::Identifier)) {
+        if (intDefs_.contains(lexer_->peek().src)) {
+          auto token = expect(lexer::TokenType::Identifier);
+          auto [value, isSigned] = intDefs_.at(token.src);
+          return std::make_unique<ast::IntLiteral>(value, isSigned);
+        }
+      }
 
       return parseValue().first;
     }
@@ -133,10 +184,12 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
                                                               lexer::TokenType terminator) {
   auto isTerminator = [&]() {
     auto type = lexer_->peek().type;
-    if (type == terminator)
+    if (type == terminator) {
       return true;
-    if (terminator == lexer::TokenType::Comma && type == lexer::TokenType::RParen)
+    }
+    if (terminator == lexer::TokenType::Comma && type == lexer::TokenType::RParen) {
       return true;
+    }
     return false;
   };
 
@@ -144,12 +197,13 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
     auto tokType = lexer_->peek().type;
 
     if (tokType == lexer::TokenType::Equals && !lexer_->peekT(lexer::TokenType::Equals, 1)) {
-      emitSemanticError("Variable assignment is not an expression, did you mean '=='?");
+      emitSyntaxError("Variable assignment is not an expression, did you mean '=='?");
     }
 
     int tokPrec = getOperatorPrecedence(tokType);
-    if (tokPrec < exprPrec)
+    if (tokPrec < exprPrec) {
       return lhs;
+    }
 
     if (tokType == lexer::TokenType::Equals) {
       lexer_->consume();
@@ -171,12 +225,10 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
       }
     }
 
-    if (lhs->isSigned() != rhs->isSigned()) {
-      emitSemanticError("Cannot create binary operation with types of different signedness");
-    }
-
-    lhs = std::make_unique<ast::BinaryOperation>(tokenToBinaryOp(tokType), std::move(lhs), std::move(rhs),
-                                                 lhs->isSigned());
+    auto binop = std::make_unique<ast::BinaryOperation>(tokenToBinaryOp(tokType), std::move(lhs), std::move(rhs),
+                                                        lhs->getType());
+    binop->setLocation(lexer_->peek().row, lexer_->peek().col);
+    lhs = std::move(binop);
   }
 
   return lhs;

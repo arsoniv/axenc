@@ -1,8 +1,7 @@
-#include <cstdio>
-#include <cstdlib>
 #include <unordered_map>
 #include <utility>
 
+#include "error.hpp"
 #include "lexer.hpp"
 
 namespace axen::lexer {
@@ -61,8 +60,9 @@ Token Lexer::nextToken() {
 
     char c = peekChar();
     auto it = symbolMap.find(c);
-    if (it != symbolMap.end())
+    if (it != symbolMap.end()) {
       newToken.type = it->second;
+    }
 
     if (newToken.type != TokenType::EndOfFile) {
       consumeChar(); // consume the single char token
@@ -78,6 +78,11 @@ Token Lexer::nextToken() {
         newIntLiteral += consumeChar();
 
         while (srcCursor_ < src_.length() && std::isxdigit(peekChar())) {
+          newIntLiteral += consumeChar();
+        }
+
+        // Check for 'u' suffix (unsigned)
+        if (srcCursor_ < src_.length() && peekChar() == 'u') {
           newIntLiteral += consumeChar();
         }
 
@@ -99,6 +104,12 @@ Token Lexer::nextToken() {
           newToken.type = TokenType::FloatLit;
         }
       }
+
+      // Check for 'u' suffix (unsigned)
+      if (newToken.type == TokenType::IntLit && srcCursor_ < src_.length() && peekChar() == 'u') {
+        newIntLiteral += consumeChar();
+      }
+
       newToken.src = std::move(newIntLiteral);
       return newToken;
     }
@@ -132,8 +143,8 @@ Token Lexer::nextToken() {
         }
       }
       if (srcCursor_ >= src_.length()) {
-        fprintf(stderr, "Unterminated string literal.\n");
-        exit(EXIT_FAILURE);
+        error::SourceLocation loc("", "", newToken.row, newToken.col, "\"");
+        error::reportError(error::ErrorType::Syntax, "Unterminated string literal", &loc);
       }
       consumeChar(); // consume closing quote
       newToken.type = TokenType::StringLit;
@@ -149,16 +160,17 @@ Token Lexer::nextToken() {
       }
 
       auto it2 = keywordMap.find(newKeyword);
-      if (it2 != keywordMap.end())
+      if (it2 != keywordMap.end()) {
         newToken.type = it2->second;
-      else
+      } else {
         newToken.type = TokenType::Identifier;
+      }
 
       newToken.src = std::move(newKeyword); // newKeyword is not needed anymore
       return newToken;
     }
-    fprintf(stderr, "Invalid character found during lexing: '%c'.\n", peekChar());
-    exit(EXIT_FAILURE);
+    error::SourceLocation loc("", "", row_, col_, std::string(1, peekChar()));
+    error::reportError(error::ErrorType::Syntax, "Invalid character found during lexing", &loc);
   }
   return {
       .type = TokenType::EndOfFile,
@@ -166,7 +178,12 @@ Token Lexer::nextToken() {
   };
 }
 
-char Lexer::peekChar(unsigned int offset) const { return src_.at(srcCursor_ + offset); }
+char Lexer::peekChar(unsigned int offset) const {
+  if (srcCursor_ + offset >= src_.size()) {
+    return '\0';
+  }
+  return src_.at(srcCursor_ + offset);
+}
 
 char Lexer::consumeChar() {
   if (peekChar() == '\n') {

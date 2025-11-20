@@ -18,32 +18,45 @@
 
 #include "nodes/context.hpp"
 #include "nodes/statement.hpp"
-#include "nodes/types.hpp"
+#include "nodes/type.hpp"
 
 namespace axen::ast {
 
 class FunctionNode {
 public:
-  FunctionNode(std::string name, std::shared_ptr<TypeNode> &&type, bool isPublic,
-               std::optional<std::vector<std::pair<std::string, std::shared_ptr<TypeNode>>>> &&params,
-               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body, bool isDetached)
-      : name_(std::move(name)), type_(type), params_(params), body_(std::move(body)), isPublic_(isPublic),
-        isDetached_(isDetached) {}
+  FunctionNode(std::string name, std::shared_ptr<FunctionTypeNode> type, std::vector<std::string> paramNames,
+               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body)
+      : name_(std::move(name)), type_(type), paramNames_(paramNames), body_(std::move(body)) {}
+
+  void analyze(AnalysisContext &ctx);
+  void analyzeBody(AnalysisContext &ctx);
 
   llvm::Function *codeGen(CodegenContext &ctx);
   void generateFunctionBody(CodegenContext &ctx, llvm::Function *function);
 
   std::string getName() { return name_; }
 
-  std::shared_ptr<TypeNode> getReturnType() { return type_; }
+  const std::shared_ptr<TypeNode> &getReturnType() { return type_->getReturn(); }
+
+  // TODO: make this not inefficent
+  std::vector<std::pair<std::string, std::shared_ptr<TypeNode>>> getParams() const {
+    auto params = std::vector<std::pair<std::string, std::shared_ptr<TypeNode>>>();
+
+    const auto &paramTypes = type_->getParameters();
+
+    for (int i = 0; i < paramTypes.size(); i++) {
+      params.emplace_back(paramNames_.at(i), paramTypes.at(i));
+    }
+
+    return params;
+  }
+  const std::optional<std::vector<std::unique_ptr<StatementNode>>> &getBody() const { return body_; }
 
 private:
   std::string name_;
-  std::shared_ptr<TypeNode> type_;
-  bool isPublic_;
-  std::optional<std::vector<std::pair<std::string, std::shared_ptr<TypeNode>>>> params_;
+  std::shared_ptr<FunctionTypeNode> type_;
+  std::vector<std::string> paramNames_;
   std::optional<std::vector<std::unique_ptr<StatementNode>>> body_;
-  bool isDetached_;
 };
 
 } // namespace axen::ast

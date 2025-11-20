@@ -2,7 +2,7 @@
 Axenc is a simple compiler for the Axen programming language written in c++ with llvm.
 
 > [!NOTE]
-> Axenc and the axenlang specifacaitons are both in early development.
+> Axenc and the axenlang specifications are both in early development.
 > Please open issues if you have any.
 
 ## Installation

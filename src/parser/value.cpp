@@ -1,7 +1,7 @@
 #include <memory>
 
 #include "nodes/expression.hpp"
-#include "nodes/types.hpp"
+#include "nodes/type.hpp"
 #include "parser.hpp"
 
 namespace axen::parser {
@@ -32,9 +32,22 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
   std::unique_ptr<ast::ExpressionNode> target;
 
   if (derivedType) {
-    // must be a local (non-member) variable
-    target = std::make_unique<ast::VariableReference>(name, derivedType->isSigned());
-  } else {
+    // local variable
+    target = std::make_unique<ast::VariableReference>(name, derivedType);
+    target->setLocation(nameToken.row, nameToken.col);
+  } else if (addressOf) {
+    // check if this is a function reference
+    auto funcReturnType = Parser::lookupFunctionReturnType(name);
+    if (funcReturnType) {
+      // this is a function, create a function reference
+      auto funcType = Parser::lookupFunctionType(name);
+      derivedType = funcType;
+      target = std::make_unique<ast::FunctionReference>(name, funcType);
+      target->setLocation(nameToken.row, nameToken.col);
+    }
+  }
+
+  if (!target) {
     // ensure a member function and this is a member variable
     auto thisType = Parser::lookupVariableType("this");
     if (thisType) {
@@ -46,31 +59,33 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
           auto fieldType = structDecl->lookupMemberType(name);
           if (fieldType) {
             // member variable access via implicit 'this' pointer
-            auto thisRef = std::make_unique<ast::VariableReference>("this", thisType->isSigned());
+            auto thisRef = std::make_unique<ast::VariableReference>("this", thisType);
             auto targetType = thisPtrType->target();
-            auto derefThis =
-                std::make_unique<ast::Dref>(std::move(thisRef), targetType, thisPtrType->target()->isSigned());
+            auto derefThis = std::make_unique<ast::Dref>(std::move(thisRef), targetType);
             target = std::make_unique<ast::StructAccess>(std::move(derefThis), name, structDecl->getName(),
-                                                         fieldType->isSigned(), classRefType);
+                                                         classRefType, fieldType);
             derivedType = fieldType;
           }
         }
       }
     }
 
+    // error will be caught in analysis
     if (!derivedType) {
-      emitSemanticError("Undefined variable '" + name + "'");
+      target = std::make_unique<ast::VariableReference>(name, derivedType);
+      target->setLocation(nameToken.row, nameToken.col);
     }
   }
 
   // apply prefix dereferences
   for (int i = 0; i < drefs; i++) {
     auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
-    if (!ptrType) {
-      emitSemanticError("Cannot dereference non-pointer type");
+    if (ptrType) {
+      derivedType = ptrType->target();
     }
-    derivedType = ptrType->target();
-    target = std::make_unique<ast::Dref>(std::move(target), derivedType, derivedType->isSigned());
+
+    // if not pointer type, error will be caught in analysis
+    target = std::make_unique<ast::Dref>(std::move(target), derivedType);
   }
 
   // handle postfix operations in loop
@@ -87,13 +102,10 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
           structType = std::dynamic_pointer_cast<ast::ClassReferenceNode>(ptrType->target());
           if (structType) {
             derivedType = ptrType->target();
-            target = std::make_unique<ast::Dref>(std::move(target), derivedType, derivedType->isSigned());
+            target = std::make_unique<ast::Dref>(std::move(target), derivedType);
           }
         }
       }
-
-      if (!structType)
-        emitSemanticError("Cannot access member of non-struct type");
 
       // handle postfix dereferences on member
       int memDrefs = 0;
@@ -108,18 +120,16 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
       // check for member method call
       if (lexer_->peekT(lexer::TokenType::LParen)) {
-        std::shared_ptr<ast::ClassNode> structDecl = structType->getDecl();
-        std::string methodName = structDecl->getName() + "_" + fieldName;
-
         lexer_->consume(); // consume lParen
 
         auto functionArgs = std::vector<std::unique_ptr<ast::ExpressionNode>>();
 
-        // First argument is 'this' - take address of the target
-        auto thisArg = std::make_unique<ast::AddressOf>(std::move(target), derivedType->isSigned());
+        // use the derivedType for 'this' argument
+        auto thisArg =
+            std::make_unique<ast::AddressOf>(std::move(target), std::make_shared<ast::PointerTypeNode>(derivedType));
         functionArgs.push_back(std::move(thisArg));
 
-        // Parse remaining arguments
+        // parse remaining arguments
         while (lexer_->peek().type != lexer::TokenType::RParen) {
           functionArgs.emplace_back(parseExpression(lexer::TokenType::Comma));
           if (lexer_->peek().type == lexer::TokenType::Comma) {
@@ -128,86 +138,105 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
         }
         lexer_->consume(); // consume ')'
 
-        auto functionReturnType = Parser::lookupFunctionReturnType(methodName);
-
-        if (!functionReturnType) {
-          emitSemanticError("Call to undefined member method '" + methodName + "'");
+        // build method name from struct name if available
+        std::string methodName = fieldName;
+        if (structType) {
+          methodName = structType->getDecl()->getName() + "_" + fieldName;
         }
 
+        auto functionReturnType = Parser::lookupFunctionReturnType(methodName);
+
+        auto funcRef = std::make_unique<ast::FunctionReference>(methodName, Parser::lookupFunctionType(methodName));
+        funcRef->setLocation(fieldToken.row, fieldToken.col);
+
+        // functionReturnType may be nullptr, will be caught in analysis
         auto call =
-            std::make_unique<ast::FunctionCall>(methodName, std::move(functionArgs), functionReturnType->isSigned());
+            std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType);
+        call->setLocation(fieldToken.row, fieldToken.col);
         return {std::move(call), functionReturnType};
       }
 
-      const std::string &structName = structType->name();
-      std::shared_ptr<ast::ClassNode> structDecl = structType->getDecl();
-
-      auto fieldType = structDecl->lookupMemberType(fieldName);
-
-      if (!fieldType) {
-        emitSemanticError("Struct '" + structName + "' has no member '" + fieldName + "'");
+      // find field type if the struct type is known
+      std::shared_ptr<ast::TypeNode> fieldType;
+      std::string structName = "";
+      if (structType) {
+        structName = structType->name();
+        std::shared_ptr<ast::ClassNode> structDecl = structType->getDecl();
+        fieldType = structDecl->lookupMemberType(fieldName);
       }
 
-      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, fieldType->isSigned(),
-                                                   structType);
+      // create struct access with available info
+      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, structType, fieldType);
+      target->setLocation(fieldToken.row, fieldToken.col);
       derivedType = fieldType;
 
       // apply member dereferences
       for (int i = 0; i < memDrefs; i++) {
         auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
-        if (!ptrType)
-          emitSemanticError("Cannot dereference non-pointer type");
 
-        derivedType = ptrType->target();
-        target = std::make_unique<ast::Dref>(std::move(target), derivedType, derivedType->isSigned());
+        if (ptrType) {
+          derivedType = ptrType->target();
+        } else {
+          derivedType = nullptr;
+        }
+        target = std::make_unique<ast::Dref>(std::move(target), derivedType);
       }
 
-    } else if (lexer_->peekT(lexer::TokenType::LBracket)) {
-      // handle postfix dereferences before lBracket
-      int memDrefs = 0;
-      while (lexer_->peekT(lexer::TokenType::Dollar)) {
-        memDrefs++;
-        lexer_->consume();
-      }
-
-      lexer_->consume(); // consume lBracket
-
-      auto arrayType = std::dynamic_pointer_cast<ast::ArrayTypeNode>(derivedType);
-      auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
-
-      if (!arrayType && !ptrType)
-        emitSemanticError("Cannot apply subscript operator to non-array/non-pointer type");
-
-      std::unique_ptr<ast::ExpressionNode> indexExpression = parseExpression(lexer::TokenType::RBracket);
-      expect(lexer::TokenType::RBracket);
-
-      if (arrayType) {
-        target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression),
-                                                    arrayType->isSigned(), arrayType);
-        derivedType = arrayType->target();
-      } else {
-        target = std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression),
-                                                       ptrType->isSigned(), ptrType);
-        derivedType = ptrType->target();
-      }
-
-      // apply postfix dereferences
-      for (int i = 0; i < memDrefs; i++) {
-        auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
-        if (!ptrType)
-          emitSemanticError("Cannot dereference non-pointer type");
-
-        derivedType = ptrType->target();
-        target = std::make_unique<ast::Dref>(std::move(target), derivedType, derivedType->isSigned());
-      }
     } else {
-      break;
+      if (lexer_->peekT(lexer::TokenType::LBracket)) {
+        // handle postfix dereferences before lBracket
+        int memDrefs = 0;
+        while (lexer_->peekT(lexer::TokenType::Dollar)) {
+          memDrefs++;
+          lexer_->consume();
+        }
+
+        lexer_->consume(); // consume lBracket
+
+        auto arrayType = std::dynamic_pointer_cast<ast::ArrayTypeNode>(derivedType);
+        auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
+
+        std::unique_ptr<ast::ExpressionNode> indexExpression = parseExpression(lexer::TokenType::RBracket);
+        expect(lexer::TokenType::RBracket);
+
+        // Create appropriate access node based on type if known
+        if (arrayType) {
+          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), arrayType);
+          derivedType = arrayType->target();
+        } else if (ptrType) {
+          target = std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression), ptrType);
+          derivedType = ptrType->target();
+        } else {
+          // unknown type, use ArrayAccess as default, will be caught in analysis
+          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), nullptr);
+        }
+
+        // apply postfix dereferences
+        for (int i = 0; i < memDrefs; i++) {
+          auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
+
+          if (ptrType) {
+            derivedType = ptrType->target();
+          } else {
+            derivedType = nullptr;
+          }
+          target = std::make_unique<ast::Dref>(std::move(target), derivedType);
+        }
+      } else {
+        break;
+      }
     }
   }
 
   // apply address-of operator
   if (addressOf) {
-    target = std::make_unique<ast::AddressOf>(std::move(target), derivedType->isSigned());
+    // only apply dereference to non function pointer (functions are already pointers)
+    auto funcRef = dynamic_cast<ast::FunctionReference *>(target.get());
+    if (!funcRef) {
+      auto ptrType = std::make_shared<ast::PointerTypeNode>(derivedType);
+      // ptrType may be nullptr, will be caught in analysis
+      target = std::make_unique<ast::AddressOf>(std::move(target), ptrType);
+    }
   }
 
   return {std::move(target), derivedType};

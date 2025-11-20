@@ -11,13 +11,17 @@ set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM: ${LLVM_PACKAGE_VERSION}")
 
-file(GLOB_RECURSE COMPILER_SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE LIB_SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+add_library(axenlang ${LIB_SRC_FILES})
+target_include_directories(axenlang PUBLIC ${LLVM_INCLUDE_DIRS})
+target_include_directories(axenlang PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_compile_definitions(axenlang PUBLIC ${LLVM_DEFINITIONS})
+target_link_libraries(axenlang PUBLIC LLVM)
 
-add_executable(axenc ${COMPILER_SRC_FILES})
+file(GLOB_RECURSE AXENC_SRC_FILES "${CMAKE_SOURCE_DIR}/compiler/*.cpp")
+add_executable(axenc ${AXENC_SRC_FILES})
+target_link_libraries(axenc PRIVATE axenlang)
 
-target_include_directories(axenc PRIVATE ${LLVM_INCLUDE_DIRS})
-target_include_directories(axenc PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-target_compile_definitions(axenc PRIVATE ${LLVM_DEFINITIONS})
-
-target_link_libraries(axenc PRIVATE LLVM)
+file(GLOB_RECURSE AXENLSP_SRC_FILES "${CMAKE_SOURCE_DIR}/lsp/*.cpp")
+add_executable(axenlsp ${AXENLSP_SRC_FILES})
+target_link_libraries(axenlsp PRIVATE axenlang)

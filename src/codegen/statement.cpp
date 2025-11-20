@@ -12,29 +12,28 @@ void VariableDeclaration::codeGen(CodegenContext &ctx) {
   llvm::Type *type = type_->codeGen(ctx);
 
   if (!type) {
-    error::reportError(error::ErrorType::Codegen, "Failed to create type for variable '" + name_ + "'");
+    ctx.emitCodegenError("Failed to create type for variable '" + name_ + "'");
   }
 
   llvm::AllocaInst *variable = ctx.builder.CreateAlloca(type, nullptr, name_);
   if (!variable) {
-    error::reportError(error::ErrorType::Codegen, "Failed to allocate variable '" + name_ + "'");
+    ctx.emitCodegenError("Failed to allocate variable '" + name_ + "'");
   }
 
   if (initialValue_) {
     llvm::Value *init_val = initialValue_->codeGen(ctx);
 
     if (!init_val) {
-      error::reportError(error::ErrorType::Codegen, "Failed to generate initial value for variable '" + name_ + "'");
+      ctx.emitCodegenError("Failed to generate initial value for variable '" + name_ + "'");
     }
 
-    llvm::Value *converted = ctx.convertIfNeeded(init_val, type, initialValue_->isSigned());
+    llvm::Value *converted = ctx.convertIfNeeded(init_val, type, initialValue_->getType()->isSigned());
 
-    if (ctx.checkTypeCompatible(type, converted->getType())) {
-      ctx.builder.CreateStore(converted, variable);
-    } else {
-      error::reportError(error::ErrorType::Codegen,
-                         "Cannot initialize variable '" + name_ + "' with incompatible type");
+    if (!ctx.checkTypeCompatible(type, converted->getType())) {
+      ctx.emitCodegenError("Cannot initialize variable '" + name_ + "' with incompatible type");
     }
+
+    ctx.builder.CreateStore(converted, variable);
   }
 
   ctx.declareVariable(name_, variable);
@@ -44,13 +43,13 @@ void AssignmentStatement::codeGen(CodegenContext &ctx) {
   llvm::Value *ptr = target_->codeGenLValue(ctx);
 
   if (!ptr) {
-    error::reportError(error::ErrorType::Codegen, "Failed to generate lvalue for assignment target");
+    ctx.emitCodegenError("Failed to generate lvalue for assignment target");
   }
 
   llvm::Value *val = value_->codeGen(ctx);
 
   if (!val) {
-    error::reportError(error::ErrorType::Codegen, "Failed to generate value for assignment");
+    ctx.emitCodegenError("Failed to generate value for assignment");
   }
 
   llvm::Type *targetType = nullptr;
@@ -62,7 +61,7 @@ void AssignmentStatement::codeGen(CodegenContext &ctx) {
     targetType = val->getType();
   }
 
-  llvm::Value *converted = ctx.convertIfNeeded(val, targetType, value_->isSigned());
+  llvm::Value *converted = ctx.convertIfNeeded(val, targetType, value_->getType()->isSigned());
 
   ctx.builder.CreateStore(converted, ptr);
 }
@@ -73,15 +72,15 @@ void Return::codeGen(CodegenContext &ctx) {
     llvm::Value *value = value_->codeGen(ctx);
 
     if (!value) {
-      error::reportError(error::ErrorType::Codegen, "Failed to generate return value");
+      ctx.emitCodegenError("Failed to generate return value");
     }
 
     llvm::Type *returnType = ctx.builder.getCurrentFunctionReturnType();
 
-    llvm::Value *converted = ctx.convertIfNeeded(value, returnType, value_->isSigned());
+    llvm::Value *converted = ctx.convertIfNeeded(value, returnType, value_->getType()->isSigned());
 
     if (!ctx.checkTypeCompatible(returnType, converted->getType())) {
-      error::reportError(error::ErrorType::Codegen, "Return value type does not match function return type");
+      ctx.emitCodegenError("Return value type does not match function return type");
     }
 
     ctx.builder.CreateRet(converted);
@@ -89,7 +88,7 @@ void Return::codeGen(CodegenContext &ctx) {
     llvm::Type *returnType = ctx.builder.getCurrentFunctionReturnType();
 
     if (!returnType->isVoidTy()) {
-      error::reportError(error::ErrorType::Codegen, "Non-void function must return a value");
+      ctx.emitCodegenError("Non-void function must return a value");
     }
 
     ctx.builder.CreateRetVoid();
@@ -100,7 +99,7 @@ void If::codeGen(CodegenContext &ctx) {
 
   llvm::Function *parentFunction = ctx.builder.GetInsertBlock()->getParent();
   if (!parentFunction) {
-    error::reportError(error::ErrorType::Codegen, "If statement has no parent function");
+    ctx.emitCodegenError("If statement has no parent function");
   }
 
   llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(ctx.llvmContext, "then", parentFunction);
@@ -109,11 +108,11 @@ void If::codeGen(CodegenContext &ctx) {
 
   llvm::Value *condValue = condition_->codeGen(ctx);
   if (!condValue) {
-    error::reportError(error::ErrorType::Codegen, "Failed to generate condition for if statement");
+    ctx.emitCodegenError("Failed to generate condition for if statement");
   }
 
   if (!condValue->getType()->isIntegerTy()) {
-    error::reportError(error::ErrorType::Codegen, "If statement condition must be integer type");
+    ctx.emitCodegenError("If statement condition must be integer type");
   }
 
   if (falseBody_) {
@@ -151,7 +150,7 @@ void While::codeGen(CodegenContext &ctx) {
 
   llvm::Function *parentFunction = ctx.builder.GetInsertBlock()->getParent();
   if (!parentFunction) {
-    error::reportError(error::ErrorType::Codegen, "While statement has no parent function");
+    ctx.emitCodegenError("While statement has no parent function");
   }
 
   llvm::BasicBlock *condBB = llvm::BasicBlock::Create(ctx.llvmContext, "cond", parentFunction);
@@ -164,11 +163,11 @@ void While::codeGen(CodegenContext &ctx) {
 
   llvm::Value *condValue = condition_->codeGen(ctx);
   if (!condValue) {
-    error::reportError(error::ErrorType::Codegen, "Failed to generate condition for while statement");
+    ctx.emitCodegenError("Failed to generate condition for while statement");
   }
 
   if (!condValue->getType()->isIntegerTy()) {
-    error::reportError(error::ErrorType::Codegen, "While statement condition must be integer type");
+    ctx.emitCodegenError("While statement condition must be integer type");
   }
 
   ctx.builder.CreateCondBr(condValue, bodyBB, exitBB);
@@ -187,7 +186,7 @@ void ExpressionStatement::codeGen(CodegenContext &ctx) {
   llvm::Value *result = expression_->codeGen(ctx);
 
   if (!result) {
-    error::reportError(error::ErrorType::Codegen, "Failed to generate expression statement");
+    ctx.emitCodegenError("Failed to generate expression statement");
   }
 }
 

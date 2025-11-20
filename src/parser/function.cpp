@@ -2,11 +2,10 @@
 #include <string>
 #include <utility>
 
+#include "lexer.hpp"
 #include "nodes/function.hpp"
 #include "nodes/statement.hpp"
-#include "nodes/types.hpp"
-
-#include "lexer.hpp"
+#include "nodes/type.hpp"
 #include "parser.hpp"
 
 namespace axen::parser {
@@ -28,21 +27,23 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   } else if (!currentClassName_.empty()) {
     name = currentClassName_ + "_" + baseName;
   } else {
-    // NOTE: if no class exists it will be treated at a detached function.
+    // detached function.
     name = baseName;
   }
 
   // left paren for params
   expect(lexer::TokenType::LParen);
 
-  auto params = std::vector<std::pair<std::string, std::shared_ptr<ast::TypeNode>>>();
+  auto paramTypes = std::vector<std::shared_ptr<ast::TypeNode>>();
+  auto paramNames = std::vector<std::string>();
 
   // add 'this' parameter for non-detached member functions
   if (!isDetached && !currentClassName_.empty()) {
     auto thisType = getTypeNode(currentClassName_);
     if (thisType) {
       auto thisPtrType = std::make_shared<ast::PointerTypeNode>(thisType);
-      params.emplace_back("this", thisPtrType);
+      paramNames.emplace_back("this");
+      paramTypes.emplace_back(thisPtrType);
     }
   }
 
@@ -54,10 +55,12 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     auto token = expect(lexer::TokenType::Identifier);
     validateIdentifier(token.src);
 
-    params.emplace_back(std::string(token.src), std::move(paramType));
+    paramNames.emplace_back(token.src);
+    paramTypes.emplace_back(std::move(paramType));
 
-    if (lexer_->peekT(lexer::TokenType::Comma))
+    if (lexer_->peekT(lexer::TokenType::Comma)) {
       lexer_->consume();
+    }
   }
 
   // closing paren for params
@@ -65,19 +68,20 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
 
   std::optional<std::vector<std::unique_ptr<ast::StatementNode>>> body;
 
-  // NOTE: function may be bodyless, only parse body if it exists
+  // function may be bodyless, only parse body if it exists
   if (lexer_->consume().type == lexer::TokenType::LBrace) {
     body = std::vector<std::unique_ptr<ast::StatementNode>>();
 
     Parser::pushScope();
 
     // index function parameters into scope
-    for (const auto &param : params) {
-      Parser::indexVariableType(param.first, const_cast<std::shared_ptr<ast::TypeNode> &>(param.second));
+    for (int i = 0; i < paramNames.size(); i++) {
+      Parser::indexVariableType(paramNames.at(i), paramTypes.at(i));
     }
 
     while (!lexer_->peekT(lexer::TokenType::RBrace)) {
-      // NOTE: we don't need to keep track of braces because braces are only used for function scopes
+      // NOTE: we don't need to keep track of braces because braces (from inner scopes) should be consumed before the
+      // above condition
       body->emplace_back(parseStatement());
     }
     expect(lexer::TokenType::RBrace);
@@ -85,7 +89,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     Parser::popScope();
   }
 
-  return std::make_unique<ast::FunctionNode>(name, std::move(type), true, std::move(params), std::move(body),
-                                             isDetached);
+  auto functionType = std::make_unique<ast::FunctionTypeNode>(type, paramTypes);
+  return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body));
 }
 } // namespace axen::parser

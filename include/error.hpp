@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdio>
-#include <cstdlib>
+#include <exception>
 #include <string>
 
 namespace axen::error {
@@ -25,42 +24,58 @@ struct SourceLocation {
       : fileName(file), className(cls), row(r), col(c), tokenText(token) {}
 };
 
-inline void reportError(ErrorType type, const std::string &message, const SourceLocation *loc = nullptr) {
-  const char *typeStr = "";
-  switch (type) {
-  case ErrorType::Syntax:
-    typeStr = "Syntax Error";
-    break;
-  case ErrorType::Semantic:
-    typeStr = "Semantic Error";
-    break;
-  case ErrorType::Codegen:
-    typeStr = "Code Generation Error";
-    break;
-  case ErrorType::Internal:
-    typeStr = "Internal Compiler Error";
-    break;
+class CompilerException : public std::exception {
+public:
+  CompilerException(ErrorType type, const std::string &message, const SourceLocation &loc)
+      : type_(type), message_(message), location_(loc) {
+    buildFullMessage();
   }
 
-  fprintf(stderr, "%s: %s\n", typeStr, message.c_str());
+  CompilerException(ErrorType type, const std::string &message) : type_(type), message_(message), location_() {
+    buildFullMessage();
+  }
 
+  const char *what() const noexcept override { return fullMessage_.c_str(); }
+
+  ErrorType getType() const { return type_; }
+  const std::string &getMessage() const { return message_; }
+  const SourceLocation &getLocation() const { return location_; }
+  int getRow() const { return location_.row; }
+  int getCol() const { return location_.col; }
+
+private:
+  void buildFullMessage() {
+    const char *typeStr = "";
+    switch (type_) {
+    case ErrorType::Syntax:
+      typeStr = "Syntax Error";
+      break;
+    case ErrorType::Semantic:
+      typeStr = "Semantic Error";
+      break;
+    case ErrorType::Codegen:
+      typeStr = "Code Generation Error";
+      break;
+    case ErrorType::Internal:
+      typeStr = "Internal Compiler Error";
+      break;
+    }
+
+    fullMessage_ = std::string(typeStr) + ": " + message_;
+  }
+
+  ErrorType type_;
+  std::string message_;
+  SourceLocation location_;
+  std::string fullMessage_;
+};
+
+[[noreturn]] inline void reportError(ErrorType type, const std::string &message, const SourceLocation *loc = nullptr) {
   if (loc) {
-    if (loc->row > 0 && loc->col > 0) {
-      fprintf(stderr, "  at line %d, column %d", loc->row, loc->col);
-      if (!loc->tokenText.empty()) {
-        fprintf(stderr, " (token: '%s')", loc->tokenText.c_str());
-      }
-      fprintf(stderr, "\n");
-    }
-    if (!loc->className.empty()) {
-      fprintf(stderr, "  in class '%s'\n", loc->className.c_str());
-    }
-    if (!loc->fileName.empty()) {
-      fprintf(stderr, "  in file '%s'\n", loc->fileName.c_str());
-    }
+    throw CompilerException(type, message, *loc);
+  } else {
+    throw CompilerException(type, message);
   }
-
-  exit(EXIT_FAILURE);
 }
 
 } // namespace axen::error
