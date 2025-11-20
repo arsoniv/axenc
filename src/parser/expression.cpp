@@ -24,6 +24,8 @@ static int getOperatorPrecedence(lexer::TokenType type) {
     return 5;
   case lexer::TokenType::Equals:
     return 3;
+  case lexer::TokenType::Ampersand:
+    return 1;
   default:
     return -1;
   }
@@ -47,6 +49,8 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
     return ast::BinaryOperationType::More;
   case lexer::TokenType::Equals:
     return ast::BinaryOperationType::Equal;
+  case lexer::TokenType::Ampersand:
+    return ast::BinaryOperationType::And;
   default:
     emitSyntaxError("Invalid binary operator");
     return ast::BinaryOperationType::Add; // unreachable
@@ -208,7 +212,7 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
       return lhs;
     }
 
-    if (tokType == lexer::TokenType::Equals) {
+    if (tokType == lexer::TokenType::Equals || tokType == lexer::TokenType::Ampersand) {
       lexer_->consume();
       lexer_->consume();
     } else {

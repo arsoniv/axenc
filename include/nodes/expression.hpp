@@ -207,6 +207,7 @@ private:
 };
 
 enum class BinaryOperationType {
+  And,
   Add,
   Subtract,
   Multiply,

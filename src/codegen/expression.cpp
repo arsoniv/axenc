@@ -429,6 +429,13 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
       ctx.emitCodegenError("Equality comparison requires operands of the same type");
     }
 
+  case BinaryOperationType::And:
+    if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      return ctx.builder.CreateAnd(L, R, "andtmp");
+    } else {
+      ctx.emitCodegenError("Bitwise AND requires integer operands");
+    }
+
   default:
     ctx.emitCodegenError("Unexpected binary operation type");
   }
