@@ -113,8 +113,8 @@ private:
   }
 
   void validateIdentifier(const std::string &id) {
-    if (id.find('_') != std::string::npos) {
-      emitSyntaxError("Invalid identifier '" + id + "': underscores are not allowed in identifiers");
+    if (id.find('-') != std::string::npos) {
+      emitSyntaxError("Invalid identifier '" + id + "': hyphens are not allowed in identifiers");
     }
   }
 

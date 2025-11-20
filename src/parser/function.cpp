@@ -25,7 +25,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   if (isDetached) {
     name = baseName;
   } else if (!currentClassName_.empty()) {
-    name = currentClassName_ + "_" + baseName;
+    name = currentClassName_ + "-" + baseName;
   } else {
     // detached function.
     name = baseName;

@@ -141,7 +141,7 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
         // build method name from struct name if available
         std::string methodName = fieldName;
         if (structType) {
-          methodName = structType->getDecl()->getName() + "_" + fieldName;
+          methodName = structType->getDecl()->getName() + "-" + fieldName;
         }
 
         auto functionReturnType = Parser::lookupFunctionReturnType(methodName);
