@@ -10,6 +10,7 @@
 
 #include "error.hpp"
 #include "lexer.hpp"
+#include "nodes/class.hpp"
 #include "nodes/expression.hpp"
 #include "nodes/function.hpp"
 #include "nodes/statement.hpp"
@@ -48,7 +49,7 @@ public:
   void parse();
   const std::vector<std::unique_ptr<ast::FunctionNode>> *getFunctions() const { return &functions_; }
   std::vector<std::unique_ptr<ast::FunctionNode>> &getFunctionsMut() { return functions_; }
-  const std::vector<std::shared_ptr<ast::ClassNode>> *getStructs() const { return &classes_; }
+  const std::vector<std::shared_ptr<ast::ClassNode>> *getClasses() const { return &classes_; }
   const std::vector<std::map<std::string, std::shared_ptr<ast::TypeNode>>> &getScopes() const { return scopes; }
 
   std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {

@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
       analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
 
       // analyze all classes first (so that functions can register them
-      for (const auto &structure : *parser->getStructs()) {
+      for (const auto &structure : *parser->getClasses()) {
         analysisCtx.registerClass(structure->getName(), structure);
       }
 
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
       }
 
       // generate code
-      for (const auto &structure : *parser->getStructs()) {
+      for (const auto &structure : *parser->getClasses()) {
         structure->codeGen(ctx);
       }
       for (const auto &func : *parser->getFunctions()) {

@@ -32,7 +32,7 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
 
     // analyze all classes first (so that functions can register them
-    for (const auto &structure : *parser->getStructs()) {
+    for (const auto &structure : *parser->getClasses()) {
       analysisCtx.registerClass(structure->getName(), structure);
     }
 

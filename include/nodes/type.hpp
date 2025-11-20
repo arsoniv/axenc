@@ -1,14 +1,12 @@
 #pragma once
 
 #include <memory>
-#include <string>
-
-#include <llvm/IR/Type.h>
-#include <utility>
 #include <vector>
 
+#include <llvm/IR/Type.h>
+
 #include "context.hpp"
-#include "error.hpp"
+#include "nodes/class.hpp"
 
 namespace axen::ast {
 
@@ -105,74 +103,12 @@ private:
   bool isSigned_;
 };
 
-/// class decl node
-class ClassNode {
-  // TODO: add analyze function
-public:
-  ClassNode(std::string name, std::map<std::string, std::shared_ptr<TypeNode>> &&members)
-      : name_(name), members_(std::move(members)) {}
-
-  llvm::StructType *codeGen(CodegenContext &ctx) {
-    // TODO: move this to a source file lol
-
-    auto it = ctx.namedStructs.find(name_);
-    if (it != ctx.namedStructs.end())
-      return it->second.first;
-
-    llvm::StructType *llvmStruct = llvm::StructType::create(ctx.llvmContext, name_);
-
-    std::vector<std::string> memberNames;
-    for (const auto &pair : members_)
-      memberNames.push_back(pair.first);
-
-    ctx.declareStruct(name_, llvmStruct, memberNames);
-
-    std::vector<llvm::Type *> llvmMembers;
-    for (const auto &pair : members_)
-      llvmMembers.push_back(pair.second->codeGen(ctx));
-
-    llvmStruct->setBody(llvmMembers);
-
-    return llvmStruct;
-  }
-
-  std::shared_ptr<ast::TypeNode> lookupMemberType(const std::string &name) const {
-    auto it = members_.find(name);
-    return it != members_.end() ? it->second : nullptr;
-  }
-
-  int lookupMemberIndex(const std::string &name) const {
-    auto it = members_.find(name);
-    if (it != members_.end()) {
-      return static_cast<int>(std::distance(members_.begin(), it));
-    }
-    error::reportError(error::ErrorType::Internal,
-                       "Could not find index of member '" + name + "' in struct '" + name_ + "'");
-    return -1; // unreachable
-  }
-
-  const std::string &getName() const { return name_; }
-
-  void addMembers(const std::map<std::string, std::shared_ptr<TypeNode>> &newMembers) {
-    members_.insert(newMembers.begin(), newMembers.end());
-  }
-
-  /// returns all data members
-  const std::map<std::string, std::shared_ptr<TypeNode>> &getMembers() const { return members_; }
-
-private:
-  std::string name_;
-  std::map<std::string, std::shared_ptr<TypeNode>> members_;
-};
-
 class ClassReferenceNode : public TypeNode {
 public:
   ClassReferenceNode(std::shared_ptr<ClassNode> decl) : decl_(decl) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
-
-  const std::string &name() const { return decl_->getName(); }
 
   bool isSigned() override { return false; }
 

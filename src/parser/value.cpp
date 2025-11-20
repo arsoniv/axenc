@@ -160,7 +160,7 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
       std::shared_ptr<ast::TypeNode> fieldType;
       std::string structName = "";
       if (structType) {
-        structName = structType->name();
+        structName = structType->getDecl()->getName();
         std::shared_ptr<ast::ClassNode> structDecl = structType->getDecl();
         fieldType = structDecl->lookupMemberType(fieldName);
       }
