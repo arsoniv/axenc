@@ -112,10 +112,16 @@ public:
 
   bool isSigned() override { return false; }
 
-  std::shared_ptr<ClassNode> getDecl() { return decl_; }
+  std::shared_ptr<ClassNode> getDecl() {
+    auto ptr = decl_.lock();
+    if (!ptr) {
+      throw std::runtime_error("ClassNode has been destroyed");
+    }
+    return ptr;
+  }
 
 private:
-  std::shared_ptr<ClassNode> decl_;
+  std::weak_ptr<ClassNode> decl_;
 };
 
 } // namespace axen::ast

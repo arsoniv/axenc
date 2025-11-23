@@ -37,13 +37,14 @@ void PrimitiveTypeNode::analyze(AnalysisContext &ctx) {
 
 void ClassReferenceNode::analyze(AnalysisContext &ctx) {
 
-  // ensure that class declaration exists (in this node)
-  if (!decl_) {
+  // ensure that class declaration exists
+  auto decl = decl_.lock();
+  if (!decl) {
     ctx.reportError("Class reference has no declaration");
     return;
   }
 
-  const std::string &className = decl_->getName();
+  const std::string &className = decl->getName();
   if (className.empty()) {
     ctx.reportError("Class reference has empty class name");
     return;

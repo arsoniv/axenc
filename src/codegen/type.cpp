@@ -46,7 +46,13 @@ llvm::Type *PrimitiveTypeNode::codeGen(CodegenContext &ctx) {
   }
 }
 
-llvm::Type *ClassReferenceNode::codeGen(CodegenContext &ctx) { return decl_->codeGen(ctx); }
+llvm::Type *ClassReferenceNode::codeGen(CodegenContext &ctx) { 
+  auto decl = decl_.lock();
+  if (!decl) {
+    ctx.emitInternalError("ClassNode has been destroyed during codegen");
+  }
+  return decl->codeGen(ctx); 
+}
 
 llvm::Type *PointerTypeNode::codeGen(CodegenContext &ctx) {
   llvm::Type *targetType = target_->codeGen(ctx);
