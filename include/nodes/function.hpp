@@ -25,8 +25,8 @@ namespace axen::ast {
 class FunctionNode {
 public:
   FunctionNode(std::string name, std::shared_ptr<FunctionTypeNode> type, std::vector<std::string> paramNames,
-               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body)
-      : name_(std::move(name)), type_(type), paramNames_(paramNames), body_(std::move(body)) {}
+               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body, error::SourceSpan span)
+      : name_(std::move(name)), type_(type), paramNames_(paramNames), body_(std::move(body)), span_(span) {}
 
   void analyze(AnalysisContext &ctx);
   void analyzeBody(AnalysisContext &ctx);
@@ -52,11 +52,14 @@ public:
   }
   const std::optional<std::vector<std::unique_ptr<StatementNode>>> &getBody() const { return body_; }
 
+  const error::SourceSpan &getSpan() const { return span_; }
+
 private:
   std::string name_;
   std::shared_ptr<FunctionTypeNode> type_;
   std::vector<std::string> paramNames_;
   std::optional<std::vector<std::unique_ptr<StatementNode>>> body_;
+  error::SourceSpan span_;
 };
 
 } // namespace axen::ast

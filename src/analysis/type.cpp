@@ -5,14 +5,14 @@ namespace axen::ast {
 
 void FunctionTypeNode::analyze(AnalysisContext &ctx) {
   if (!returnType_) {
-    ctx.reportError("Function type with no return type");
+    ctx.emitAnalysisError("Function type with no return type", span_);
   }
 }
 
 void PointerTypeNode::analyze(AnalysisContext &ctx) {
 
   if (!target_) {
-    ctx.reportError("Pointer type with no target type");
+    ctx.emitAnalysisError("Pointer type with no target type", span_);
     return;
   }
   target_->analyze(ctx);
@@ -21,13 +21,13 @@ void PointerTypeNode::analyze(AnalysisContext &ctx) {
 void ArrayTypeNode::analyze(AnalysisContext &ctx) {
 
   if (!target_) {
-    ctx.reportError("Array type with no element type");
+    ctx.emitAnalysisError("Array type with no element type", span_);
     return;
   }
   target_->analyze(ctx);
 
   if (length_ <= 0) {
-    ctx.reportError("Array length must be positive (got " + std::to_string(length_) + ")");
+    ctx.emitAnalysisError("Array length must be positive (got " + std::to_string(length_) + ")", span_);
   }
 }
 
@@ -40,20 +40,20 @@ void ClassReferenceNode::analyze(AnalysisContext &ctx) {
   // ensure that class declaration exists
   auto decl = decl_.lock();
   if (!decl) {
-    ctx.reportError("Class reference has no declaration");
+    ctx.emitAnalysisError("Class reference has no declaration", span_);
     return;
   }
 
   const std::string &className = decl->getName();
   if (className.empty()) {
-    ctx.reportError("Class reference has empty class name");
+    ctx.emitAnalysisError("Class reference has empty class name", span_);
     return;
   }
 
   // ensure the class exists in this context
   auto classNode = ctx.lookupClass(className);
   if (!classNode) {
-    ctx.reportError("Class '" + className + "' is not defined");
+    ctx.emitAnalysisError("Class '" + className + "' is not defined", span_);
     return;
   }
 }

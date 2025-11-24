@@ -23,27 +23,41 @@ public:
   Parser(std::string &&sourceCode, std::string filePath = "")
       : sourceCode_(std::move(sourceCode)), rootFilePath_(std::move(filePath)) {
 
-    registerPrimitiveType("bool", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Bool, false));
+    error::SourceSpan builtinSpan{};
+    registerPrimitiveType("bool",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Bool, false, builtinSpan));
 
-    registerPrimitiveType("void", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, true));
+    registerPrimitiveType("void",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, true, builtinSpan));
 
-    registerPrimitiveType("char", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, true));
-    registerPrimitiveType("uchar", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, false));
+    registerPrimitiveType("char",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, true, builtinSpan));
+    registerPrimitiveType("uchar",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Char, false, builtinSpan));
 
-    registerPrimitiveType("short", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Short, true));
-    registerPrimitiveType("ushort", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Short, false));
+    registerPrimitiveType("short",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Short, true, builtinSpan));
+    registerPrimitiveType("ushort",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Short, false, builtinSpan));
 
-    registerPrimitiveType("int", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Int, true));
-    registerPrimitiveType("uint", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Int, false));
+    registerPrimitiveType("int", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Int, true, builtinSpan));
+    registerPrimitiveType("uint",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Int, false, builtinSpan));
 
-    registerPrimitiveType("long", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Long, true));
-    registerPrimitiveType("ulong", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Long, false));
+    registerPrimitiveType("long",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Long, true, builtinSpan));
+    registerPrimitiveType("ulong",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Long, false, builtinSpan));
 
     // fp types are always signed
-    registerPrimitiveType("half", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Half, true));
-    registerPrimitiveType("float", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Float, true));
-    registerPrimitiveType("double", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Double, true));
-    registerPrimitiveType("quad", std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Quad, true));
+    registerPrimitiveType("half",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Half, true, builtinSpan));
+    registerPrimitiveType("float",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Float, true, builtinSpan));
+    registerPrimitiveType("double",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Double, true, builtinSpan));
+    registerPrimitiveType("quad",
+                          std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Quad, true, builtinSpan));
   }
 
   void parse();
@@ -63,7 +77,7 @@ public:
   }
 
 private:
-  void parseClass();
+  void parseClass(error::SourceSpan span);
   void parseFile();
   void parseFunctions();
   void processImports();
@@ -80,15 +94,15 @@ private:
   std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> parseValue();
 
   inline void emitSyntaxError(const std::string &msg) {
-    error::SourceLocation loc(currentFileName_, currentClassName_, lexer_->peek().row, lexer_->peek().col,
-                              lexer_->peek().src);
-    error::reportError(error::ErrorType::Syntax, msg, &loc);
+    auto tok = lexer_->peek();
+    error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
+    error::reportError(error::ErrorType::Syntax, msg, loc);
   }
 
   inline void emitSemanticError(const std::string &msg) {
-    error::SourceLocation loc(currentFileName_, currentClassName_, lexer_->peek().row, lexer_->peek().col,
-                              lexer_->peek().src);
-    error::reportError(error::ErrorType::Semantic, msg, &loc);
+    auto tok = lexer_->peek();
+    error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
+    error::reportError(error::ErrorType::Semantic, msg, loc);
   }
 
   // parsing utils
@@ -106,9 +120,9 @@ private:
         expectedString = "<identifier>";
       }
 
-      error::SourceLocation loc(currentFileName_, currentClassName_, lexer_->peek().row, lexer_->peek().col,
-                                lexer_->peek().src);
-      error::reportError(error::ErrorType::Syntax, "Expected token: '" + expectedString + "'", &loc);
+      auto tok = lexer_->peek();
+      error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
+      error::reportError(error::ErrorType::Syntax, "Expected token: '" + expectedString + "'", loc);
     }
     return lexer_->consume();
   }
@@ -117,6 +131,14 @@ private:
     if (id.find('-') != std::string::npos) {
       emitSyntaxError("Invalid identifier '" + id + "': hyphens are not allowed in identifiers");
     }
+  }
+
+  error::SourceSpan makeSpan(const lexer::Token &tok) {
+    return error::SourceSpan{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
+  }
+
+  error::SourceSpan makeSpan(int startRow, int startCol, int endRow, int endCol) {
+    return error::SourceSpan{currentFileName_, startRow, startCol, endRow, endCol};
   }
 
   // variable utils
@@ -133,7 +155,7 @@ private:
     types_.insert({name, type});
   }
   void registerStructType(const std::string &name, const std::shared_ptr<ast::ClassNode> &structDeclNode) {
-    types_.insert({name, std::make_shared<ast::ClassReferenceNode>(structDeclNode)});
+    types_.insert({name, std::make_shared<ast::ClassReferenceNode>(structDeclNode, structDeclNode->getSpan())});
   }
 
   std::shared_ptr<ast::TypeNode> getTypeNode(const std::string &name) const {
@@ -160,7 +182,7 @@ private:
         for (const auto &param : params) {
           paramTypes.push_back(param.second);
         }
-        return std::make_shared<ast::FunctionTypeNode>(func->getReturnType(), paramTypes);
+        return std::make_shared<ast::FunctionTypeNode>(func->getReturnType(), paramTypes, func->getSpan());
       }
     }
     return nullptr;

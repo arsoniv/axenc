@@ -31,10 +31,10 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
   std::shared_ptr<ast::TypeNode> derivedType = Parser::lookupVariableType(name);
   std::unique_ptr<ast::ExpressionNode> target;
 
+  auto span = makeSpan(nameToken);
   if (derivedType) {
     // local variable
-    target = std::make_unique<ast::VariableReference>(name, derivedType);
-    target->setLocation(nameToken.row, nameToken.col);
+    target = std::make_unique<ast::VariableReference>(name, derivedType, span);
   } else if (addressOf) {
     // check if this is a function reference
     auto funcReturnType = Parser::lookupFunctionReturnType(name);
@@ -42,8 +42,7 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
       // this is a function, create a function reference
       auto funcType = Parser::lookupFunctionType(name);
       derivedType = funcType;
-      target = std::make_unique<ast::FunctionReference>(name, funcType);
-      target->setLocation(nameToken.row, nameToken.col);
+      target = std::make_unique<ast::FunctionReference>(name, funcType, span);
     }
   }
 
@@ -59,11 +58,11 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
           auto fieldType = structDecl->lookupMemberType(name);
           if (fieldType) {
             // member variable access via implicit 'this' pointer
-            auto thisRef = std::make_unique<ast::VariableReference>("this", thisType);
+            auto thisRef = std::make_unique<ast::VariableReference>("this", thisType, span);
             auto targetType = thisPtrType->target();
-            auto derefThis = std::make_unique<ast::Dref>(std::move(thisRef), targetType);
+            auto derefThis = std::make_unique<ast::Dref>(std::move(thisRef), targetType, span);
             target = std::make_unique<ast::StructAccess>(std::move(derefThis), name, structDecl->getName(),
-                                                         classRefType, fieldType);
+                                                         classRefType, fieldType, span);
             derivedType = fieldType;
           }
         }
@@ -72,8 +71,7 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
     // error will be caught in analysis
     if (!derivedType) {
-      target = std::make_unique<ast::VariableReference>(name, derivedType);
-      target->setLocation(nameToken.row, nameToken.col);
+      target = std::make_unique<ast::VariableReference>(name, derivedType, span);
     }
   }
 
@@ -85,7 +83,7 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
     }
 
     // if not pointer type, error will be caught in analysis
-    target = std::make_unique<ast::Dref>(std::move(target), derivedType);
+    target = std::make_unique<ast::Dref>(std::move(target), derivedType, span);
   }
 
   // handle postfix operations in loop
@@ -102,7 +100,8 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
           structType = std::dynamic_pointer_cast<ast::ClassReferenceNode>(ptrType->target());
           if (structType) {
             derivedType = ptrType->target();
-            target = std::make_unique<ast::Dref>(std::move(target), derivedType);
+            auto derefSpan = makeSpan(lexer_->peek());
+            target = std::make_unique<ast::Dref>(std::move(target), derivedType, derefSpan);
           }
         }
       }
@@ -125,8 +124,9 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
         auto functionArgs = std::vector<std::unique_ptr<ast::ExpressionNode>>();
 
         // use the derivedType for 'this' argument
+        auto fieldSpan = makeSpan(fieldToken);
         auto thisArg =
-            std::make_unique<ast::AddressOf>(std::move(target), std::make_shared<ast::PointerTypeNode>(derivedType));
+            std::make_unique<ast::AddressOf>(std::move(target), std::make_shared<ast::PointerTypeNode>(derivedType, fieldSpan), fieldSpan);
         functionArgs.push_back(std::move(thisArg));
 
         // parse remaining arguments
@@ -146,13 +146,11 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
         auto functionReturnType = Parser::lookupFunctionReturnType(methodName);
 
-        auto funcRef = std::make_unique<ast::FunctionReference>(methodName, Parser::lookupFunctionType(methodName));
-        funcRef->setLocation(fieldToken.row, fieldToken.col);
+        auto funcRef = std::make_unique<ast::FunctionReference>(methodName, Parser::lookupFunctionType(methodName), fieldSpan);
 
         // functionReturnType may be nullptr, will be caught in analysis
         auto call =
-            std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType);
-        call->setLocation(fieldToken.row, fieldToken.col);
+            std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType, fieldSpan);
         return {std::move(call), functionReturnType};
       }
 
@@ -166,8 +164,8 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
       }
 
       // create struct access with available info
-      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, structType, fieldType);
-      target->setLocation(fieldToken.row, fieldToken.col);
+      auto fieldSpan = makeSpan(fieldToken);
+      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, structType, fieldType, fieldSpan);
       derivedType = fieldType;
 
       // apply member dereferences
@@ -179,7 +177,8 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
         } else {
           derivedType = nullptr;
         }
-        target = std::make_unique<ast::Dref>(std::move(target), derivedType);
+        auto derefSpan = makeSpan(lexer_->peek());
+        target = std::make_unique<ast::Dref>(std::move(target), derivedType, derefSpan);
       }
 
     } else {
@@ -197,18 +196,19 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
         auto ptrType = std::dynamic_pointer_cast<ast::PointerTypeNode>(derivedType);
 
         std::unique_ptr<ast::ExpressionNode> indexExpression = parseExpression(lexer::TokenType::RBracket);
-        expect(lexer::TokenType::RBracket);
+        auto endBracket = expect(lexer::TokenType::RBracket);
+        auto accessSpan = makeSpan(nameToken.row, nameToken.col, endBracket.row, static_cast<int>(endBracket.col + endBracket.src.length()));
 
         // Create appropriate access node based on type if known
         if (arrayType) {
-          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), arrayType);
+          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), arrayType, accessSpan);
           derivedType = arrayType->target();
         } else if (ptrType) {
-          target = std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression), ptrType);
+          target = std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression), ptrType, accessSpan);
           derivedType = ptrType->target();
         } else {
           // unknown type, use ArrayAccess as default, will be caught in analysis
-          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), nullptr);
+          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), nullptr, accessSpan);
         }
 
         // apply postfix dereferences
@@ -220,7 +220,8 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
           } else {
             derivedType = nullptr;
           }
-          target = std::make_unique<ast::Dref>(std::move(target), derivedType);
+          auto derefSpan = makeSpan(lexer_->peek());
+          target = std::make_unique<ast::Dref>(std::move(target), derivedType, derefSpan);
         }
       } else {
         break;
@@ -233,9 +234,9 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
     // only apply dereference to non function pointer (functions are already pointers)
     auto funcRef = dynamic_cast<ast::FunctionReference *>(target.get());
     if (!funcRef) {
-      auto ptrType = std::make_shared<ast::PointerTypeNode>(derivedType);
+      auto ptrType = std::make_shared<ast::PointerTypeNode>(derivedType, span);
       // ptrType may be nullptr, will be caught in analysis
-      target = std::make_unique<ast::AddressOf>(std::move(target), ptrType);
+      target = std::make_unique<ast::AddressOf>(std::move(target), ptrType, span);
     }
   }
 

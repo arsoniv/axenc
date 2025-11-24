@@ -32,17 +32,13 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
 
     // analyze all classes
-    for (const auto &structure : *parser->getClasses()) {
-      structure->analyze(analysisCtx);
+    for (const auto &_class : *parser->getClasses()) {
+      _class->analyze(analysisCtx);
     }
 
     // analyze all functions
     for (const auto &func : *parser->getFunctions()) {
-      try {
-        func->analyze(analysisCtx);
-      } catch (const std::runtime_error &) {
-        // continue analyzing to collect all errors
-      }
+      func->analyze(analysisCtx);
     }
 
     // report analysis errors as diagnostics
@@ -52,12 +48,10 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
       }
       first_diagnostic = false;
 
-      int line = error.row > 0 ? error.row - 1 : 0;
-      int col = error.col > 0 ? error.col - 1 : 0;
-
-      diagnostics << R"({"range":{"start":{"line":)" << line << ",\"character\":" << col << R"(},"end":{"line":)"
-                  << line << ",\"character\":" << (col + 1) << R"(}},"severity":1,"message":")"
-                  << escapeJsonString(error.message) << "\"}";
+      diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
+                  << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
+                  << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
+                  << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
     }
 
   } catch (const axen::error::CompilerException &e) {
@@ -66,8 +60,8 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     }
     first_diagnostic = false;
 
-    int line = e.getRow() > 0 ? e.getRow() - 1 : 0;
-    int col = e.getCol() > 0 ? e.getCol() - 1 : 0;
+    int line = e.getLocation().startRow > 0 ? e.getLocation().startRow - 1 : 0;
+    int col = e.getLocation().startCol > 0 ? e.getLocation().startCol - 1 : 0;
 
     diagnostics << R"({"range":{"start":{"line":)" << line << ",\"character\":" << col << R"(},"end":{"line":)" << line
                 << ",\"character\":" << (col + 1) << R"(}},"severity":1,"message":")" << escapeJsonString(e.what())

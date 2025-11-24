@@ -14,7 +14,7 @@
 
 namespace axen::parser {
 
-void Parser::parseClass() {
+void Parser::parseClass(error::SourceSpan span) {
 
   auto savedState = lexer_->saveState();
 
@@ -78,7 +78,7 @@ void Parser::parseClass() {
       }
     } else {
       // class doesn't exist, create it
-      auto classNode = std::make_shared<ast::ClassNode>(currentClassName_, std::move(members));
+      auto classNode = std::make_shared<ast::ClassNode>(currentClassName_, std::move(members), span);
       classes_.push_back(classNode);
       registerStructType(currentClassName_, classNode);
     }

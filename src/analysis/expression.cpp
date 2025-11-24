@@ -7,17 +7,17 @@
 namespace axen::ast {
 
 void VariableReference::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (name_.empty()) {
-    ctx.reportError("Variable reference with empty name");
+    ctx.emitAnalysisError("Variable reference with empty name", span_);
     return;
   }
 
   auto varType = ctx.lookupVariable(name_);
   if (!varType) {
-    ctx.reportError("Undefined variable '" + name_ + "'");
+    ctx.emitAnalysisError("Undefined variable '" + name_ + "'", span_);
     return;
   }
 
@@ -25,23 +25,23 @@ void VariableReference::analyze(AnalysisContext &ctx) {
 }
 
 void StructAccess::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!structExpr_) {
-    ctx.reportError("Struct access with null struct expression");
+    ctx.emitAnalysisError("Struct access with null struct expression", span_);
     return;
   }
   structExpr_->analyze(ctx);
 
   if (memberName_.empty()) {
-    ctx.reportError("Struct access with empty member name");
+    ctx.emitAnalysisError("Struct access with empty member name", span_);
     return;
   }
 
   auto structExprType = structExpr_->getType();
   if (!structExprType) {
-    ctx.reportError("Cannot determine type of struct expression for member access");
+    ctx.emitAnalysisError("Cannot determine type of struct expression for member access", span_);
     return;
   }
 
@@ -49,7 +49,7 @@ void StructAccess::analyze(AnalysisContext &ctx) {
   if (structType_ && structType_->getDecl()) {
     auto memberType = structType_->getDecl()->lookupMemberType(memberName_);
     if (!memberType) {
-      ctx.reportError("Struct '" + structName_ + "' has no member named '" + memberName_ + "'");
+      ctx.emitAnalysisError("Struct '" + structName_ + "' has no member named '" + memberName_ + "'", span_);
       return;
     }
 
@@ -58,44 +58,44 @@ void StructAccess::analyze(AnalysisContext &ctx) {
 }
 
 void ArrayAccess::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!arrayExpr_) {
-    ctx.reportError("Array access with null array expression");
+    ctx.emitAnalysisError("Array access with null array expression", span_);
     return;
   }
   arrayExpr_->analyze(ctx);
 
   auto arrayExprType = arrayExpr_->getType();
   if (!arrayExprType) {
-    ctx.reportError("Cannot determine type of array expression");
+    ctx.emitAnalysisError("Cannot determine type of array expression", span_);
     return;
   }
 
   // ensure this is an array type
   auto arrType = std::dynamic_pointer_cast<ArrayTypeNode>(arrayExprType);
   if (!arrType) {
-    ctx.reportError("Subscript operator used on non-array type");
+    ctx.emitAnalysisError("Subscript operator used on non-array type", span_);
     return;
   }
 
   if (!indexExpr_) {
-    ctx.reportError("Array access with null index expression");
+    ctx.emitAnalysisError("Array access with null index expression", span_);
     return;
   }
   indexExpr_->analyze(ctx);
 
   auto indexType = indexExpr_->getType();
   if (!indexType) {
-    ctx.reportError("Cannot determine type of index expression");
+    ctx.emitAnalysisError("Cannot determine type of index expression", span_);
     return;
   }
 
   // ensure index is a primitive type
   auto indexPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(indexType);
   if (!indexPrimType) {
-    ctx.reportError("Array index must be an integer type");
+    ctx.emitAnalysisError("Array index must be an integer type", span_);
     return;
   }
 
@@ -106,44 +106,44 @@ void ArrayAccess::analyze(AnalysisContext &ctx) {
 }
 
 void PtrIndexAccess::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!ptrExpr_) {
-    ctx.reportError("Pointer index access with null pointer expression");
+    ctx.emitAnalysisError("Pointer index access with null pointer expression", span_);
     return;
   }
   ptrExpr_->analyze(ctx);
 
   auto ptrExprType = ptrExpr_->getType();
   if (!ptrExprType) {
-    ctx.reportError("Cannot determine type of pointer expression");
+    ctx.emitAnalysisError("Cannot determine type of pointer expression", span_);
     return;
   }
 
   // ensure this is a pointer type
   auto pType = std::dynamic_pointer_cast<PointerTypeNode>(ptrExprType);
   if (!pType) {
-    ctx.reportError("Subscript operator used on non-pointer type");
+    ctx.emitAnalysisError("Subscript operator used on non-pointer type", span_);
     return;
   }
 
   if (!indexExpr_) {
-    ctx.reportError("Pointer index access with null index expression");
+    ctx.emitAnalysisError("Pointer index access with null index expression", span_);
     return;
   }
   indexExpr_->analyze(ctx);
 
   auto indexType = indexExpr_->getType();
   if (!indexType) {
-    ctx.reportError("Cannot determine type of index expression");
+    ctx.emitAnalysisError("Cannot determine type of index expression", span_);
     return;
   }
 
   // ensure index is a primitive type
   auto indexPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(indexType);
   if (!indexPrimType) {
-    ctx.reportError("Pointer index must be an integer type");
+    ctx.emitAnalysisError("Pointer index must be an integer type", span_);
     return;
   }
 
@@ -154,97 +154,97 @@ void PtrIndexAccess::analyze(AnalysisContext &ctx) {
 }
 
 void Dref::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!target_) {
-    ctx.reportError("Dereference with null target expression");
+    ctx.emitAnalysisError("Dereference with null target expression", span_);
     return;
   }
   target_->analyze(ctx);
 
   auto targetType = target_->getType();
   if (!targetType) {
-    ctx.reportError("Cannot determine type of dereference target");
+    ctx.emitAnalysisError("Cannot determine type of dereference target", span_);
     return;
   }
 
   // ensure pointer type
   auto ptrType = std::dynamic_pointer_cast<PointerTypeNode>(targetType);
   if (!ptrType) {
-    ctx.reportError("Cannot dereference non-pointer type");
+    ctx.emitAnalysisError("Cannot dereference non-pointer type", span_);
     return;
   }
 
   // update type_ to the derived type
   derivedType_ = ptrType->target();
-  type_ = std::make_shared<PointerTypeNode>(derivedType_);
+  type_ = std::make_shared<PointerTypeNode>(derivedType_, span_);
 }
 
 void AddressOf::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!target_) {
-    ctx.reportError("Address-of with null target expression");
+    ctx.emitAnalysisError("Address-of with null target expression", span_);
     return;
   }
   target_->analyze(ctx);
 
   auto targetType = target_->getType();
   if (!targetType) {
-    ctx.reportError("Cannot determine type of address-of target");
+    ctx.emitAnalysisError("Cannot determine type of address-of target", span_);
     return;
   }
 
   // update type_ to be a pointer to the target type
-  type_ = std::make_shared<PointerTypeNode>(targetType);
+  type_ = std::make_shared<PointerTypeNode>(targetType, span_);
 }
 
 void IntLiteral::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!type_) {
-    ctx.reportError("Integer literal has no type");
+    ctx.emitAnalysisError("Integer literal has no type", span_);
   }
 }
 
 void FloatLiteral::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!type_) {
-    ctx.reportError("Float literal has no type");
+    ctx.emitAnalysisError("Float literal has no type", span_);
   }
 }
 
 void StringLiteral::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!type_) {
-    ctx.reportError("String literal has no type");
+    ctx.emitAnalysisError("String literal has no type", span_);
   }
 }
 
 void NullptrLiteral::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!type_) {
-    ctx.reportError("Nullptr literal has no type");
+    ctx.emitAnalysisError("Nullptr literal has no type", span_);
   }
 }
 
 void FunctionReference::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (isVariable_) {
     // function pointer
     if (!varExpr_) {
-      ctx.reportError("Function reference with null variable expression");
+      ctx.emitAnalysisError("Function reference with null variable expression", span_);
       return;
     }
 
@@ -252,33 +252,33 @@ void FunctionReference::analyze(AnalysisContext &ctx) {
     type_ = varExpr_->getType();
 
     if (!type_) {
-      ctx.reportError("Function pointer variable has no type");
+      ctx.emitAnalysisError("Function pointer variable has no type", span_);
     }
   } else {
     // direct function reference
     if (name_.empty()) {
-      ctx.reportError("Function reference with empty function name");
+      ctx.emitAnalysisError("Function reference with empty function name", span_);
       return;
     }
 
     auto func = ctx.lookupFunction(name_);
     if (!func) {
-      ctx.reportError("Reference to undefined function '" + name_ + "'");
+      ctx.emitAnalysisError("Reference to undefined function '" + name_ + "'", span_);
       return;
     }
 
     if (!type_) {
-      ctx.reportError("Function reference has no type");
+      ctx.emitAnalysisError("Function reference has no type", span_);
     }
   }
 }
 
 void FunctionCall::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!funcRef_) {
-    ctx.reportError("Function call with null function reference");
+    ctx.emitAnalysisError("Function call with null function reference", span_);
     return;
   }
 
@@ -287,13 +287,13 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
   // analyze all arguments first
   for (size_t i = 0; i < args_.size(); ++i) {
     if (!args_[i]) {
-      ctx.reportError("Null argument at position " + std::to_string(i) + " in function call");
+      ctx.emitAnalysisError("Null argument at position " + std::to_string(i) + " in function call", span_);
       continue;
     }
     args_[i]->analyze(ctx);
 
     if (!args_[i]->getType()) {
-      ctx.reportError("Argument at position " + std::to_string(i) + " has no type in function call");
+      ctx.emitAnalysisError("Argument at position " + std::to_string(i) + " has no type in function call", span_);
     }
   }
 
@@ -301,28 +301,28 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
     // function pointer call
     auto funcPtrType = funcRef_->getType();
     if (!funcPtrType) {
-      ctx.reportError("Function pointer has no type");
+      ctx.emitAnalysisError("Function pointer has no type", span_);
       return;
     }
 
     // function pointer should be ptr to function type
     auto ptrType = std::dynamic_pointer_cast<PointerTypeNode>(funcPtrType);
     if (!ptrType) {
-      ctx.reportError("Cannot call non-function-pointer type");
+      ctx.emitAnalysisError("Cannot call non-function-pointer type", span_);
       return;
     }
 
     auto funcType = std::dynamic_pointer_cast<FunctionTypeNode>(ptrType->target());
     if (!funcType) {
-      ctx.reportError("Pointer does not point to a function type");
+      ctx.emitAnalysisError("Pointer does not point to a function type", span_);
       return;
     }
 
     // ensure argument count matches function parameter count
     const auto &paramTypes = funcType->getParameters();
     if (args_.size() != paramTypes.size()) {
-      ctx.reportError("Function pointer expects " + std::to_string(paramTypes.size()) + " argument(s) but " +
-                      std::to_string(args_.size()) + " provided");
+      ctx.emitAnalysisError("Function pointer expects " + std::to_string(paramTypes.size()) + " argument(s) but " +
+                      std::to_string(args_.size()) + " provided", span_);
     }
 
     // update type_ to the function's return type
@@ -333,7 +333,7 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
 
     auto func = ctx.lookupFunction(funcName);
     if (!func) {
-      ctx.reportError("Call to undefined function '" + funcName + "'");
+      ctx.emitAnalysisError("Call to undefined function '" + funcName + "'", span_);
       return;
     }
 
@@ -342,8 +342,8 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
     size_t expectedArgCount = params.size();
 
     if (args_.size() != expectedArgCount) {
-      ctx.reportError("Function '" + funcName + "' expects " + std::to_string(expectedArgCount) + " argument(s) but " +
-                      std::to_string(args_.size()) + " provided");
+      ctx.emitAnalysisError("Function '" + funcName + "' expects " + std::to_string(expectedArgCount) + " argument(s) but " +
+                      std::to_string(args_.size()) + " provided", span_);
     } else {
       // ensure argument types match parameter types
       for (size_t i = 0; i < args_.size(); ++i) {
@@ -351,11 +351,11 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
         auto paramType = (params)[i].second;
 
         if (!argType) {
-          ctx.reportError("Type of argument " + std::to_string(i + 1) + " in call to '" + funcName +
-                          "' could not be determined");
+          ctx.emitAnalysisError("Type of argument " + std::to_string(i + 1) + " in call to '" + funcName +
+                          "' could not be determined", span_);
         }
         if (!paramType) {
-          ctx.reportError("Type of parameter '" + (params)[i].first + "' could not be determined");
+          ctx.emitAnalysisError("Type of parameter '" + (params)[i].first + "' could not be determined", span_);
         }
 
         if (argType && paramType) {
@@ -366,8 +366,8 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
 
           if (argPrimType && paramPrimType) {
             if (argPrimType->isSigned() != paramPrimType->isSigned()) {
-              ctx.reportError("Argument " + std::to_string(i + 1) + " in call to '" + funcName +
-                              "' has incompatible signedness (parameter '" + (params)[i].first + "')");
+              ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " in call to '" + funcName +
+                              "' has incompatible signedness (parameter '" + (params)[i].first + "')", span_);
             }
           }
 
@@ -375,16 +375,16 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
           auto paramPtrType = std::dynamic_pointer_cast<PointerTypeNode>(paramType);
 
           if ((argPtrType && !paramPtrType) || (!argPtrType && paramPtrType)) {
-            ctx.reportError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
-                            "' (parameter '" + (params)[i].first + "')");
+            ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
+                            "' (parameter '" + (params)[i].first + "')", span_);
           }
 
           auto argArrType = std::dynamic_pointer_cast<ArrayTypeNode>(argType);
           auto paramArrType = std::dynamic_pointer_cast<ArrayTypeNode>(paramType);
 
           if ((argArrType && !paramArrType) || (!argArrType && paramArrType)) {
-            ctx.reportError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
-                            "' (parameter '" + (params)[i].first + "')");
+            ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
+                            "' (parameter '" + (params)[i].first + "')", span_);
           }
         }
       }
@@ -393,58 +393,58 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
     // update type_ to the function's return type
     type_ = func->getReturnType();
     if (!type_) {
-      ctx.reportError("Function '" + funcName + "' has no return type");
+      ctx.emitAnalysisError("Function '" + funcName + "' has no return type", span_);
     }
   }
 }
 
 void BinaryOperation::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   // left operand
   if (!L_) {
-    ctx.reportError("Binary operation with null left operand");
+    ctx.emitAnalysisError("Binary operation with null left operand", span_);
     return;
   }
   L_->analyze(ctx);
 
   auto leftType = L_->getType();
   if (!leftType) {
-    ctx.reportError("Cannot determine type of left operand in binary operation");
+    ctx.emitAnalysisError("Cannot determine type of left operand in binary operation", span_);
     return;
   }
 
   // right operand
   if (!R_) {
-    ctx.reportError("Binary operation with null right operand");
+    ctx.emitAnalysisError("Binary operation with null right operand", span_);
     return;
   }
   R_->analyze(ctx);
 
   auto rightType = R_->getType();
   if (!rightType) {
-    ctx.reportError("Cannot determine type of right operand in binary operation");
+    ctx.emitAnalysisError("Cannot determine type of right operand in binary operation", span_);
     return;
   }
 
   // ensure same signedness
   if (leftType->isSigned() != rightType->isSigned()) {
-    ctx.reportError("Binary operation with operands of different signedness");
+    ctx.emitAnalysisError("Binary operation with operands of different signedness", span_);
     return;
   }
 
   // for comparison operations the result type is bool
   if (opType_ == BinaryOperationType::Less || opType_ == BinaryOperationType::More ||
       opType_ == BinaryOperationType::Equal) {
-    type_ = std::make_shared<PrimitiveTypeNode>(PrimitiveType::Bool, false);
+    type_ = std::make_shared<PrimitiveTypeNode>(PrimitiveType::Bool, false, span_);
   } else {
     // for arithmetic operations the result type is the same as operand's
     type_ = leftType;
   }
 
   if (!type_) {
-    ctx.reportError("Cannot determine result type of binary operation");
+    ctx.emitAnalysisError("Cannot determine result type of binary operation", span_);
   }
 }
 

@@ -5,6 +5,14 @@
 
 namespace axen::error {
 
+struct SourceSpan {
+  std::string file;
+  int startRow;
+  int startCol;
+  int endRow;
+  int endCol;
+};
+
 enum class ErrorType {
   Syntax,
   Semantic,
@@ -12,21 +20,9 @@ enum class ErrorType {
   Internal,
 };
 
-struct SourceLocation {
-  std::string fileName;
-  std::string className;
-  int row = 0;
-  int col = 0;
-  std::string tokenText;
-
-  SourceLocation() = default;
-  SourceLocation(const std::string &file, const std::string &cls, int r, int c, const std::string &token)
-      : fileName(file), className(cls), row(r), col(c), tokenText(token) {}
-};
-
 class CompilerException : public std::exception {
 public:
-  CompilerException(ErrorType type, const std::string &message, const SourceLocation &loc)
+  CompilerException(ErrorType type, const std::string &message, const SourceSpan &loc)
       : type_(type), message_(message), location_(loc) {
     buildFullMessage();
   }
@@ -39,9 +35,7 @@ public:
 
   ErrorType getType() const { return type_; }
   const std::string &getMessage() const { return message_; }
-  const SourceLocation &getLocation() const { return location_; }
-  int getRow() const { return location_.row; }
-  int getCol() const { return location_.col; }
+  const SourceSpan &getLocation() const { return location_; }
 
 private:
   void buildFullMessage() {
@@ -66,16 +60,12 @@ private:
 
   ErrorType type_;
   std::string message_;
-  SourceLocation location_;
+  SourceSpan location_;
   std::string fullMessage_;
 };
 
-[[noreturn]] inline void reportError(ErrorType type, const std::string &message, const SourceLocation *loc = nullptr) {
-  if (loc) {
-    throw CompilerException(type, message, *loc);
-  } else {
-    throw CompilerException(type, message);
-  }
+[[noreturn]] inline void reportError(ErrorType type, const std::string &message, const SourceSpan &loc) {
+  throw CompilerException(type, message, loc);
 }
 
 } // namespace axen::error

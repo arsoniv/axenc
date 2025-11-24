@@ -8,14 +8,14 @@ namespace axen::ast {
 
 void FunctionNode::analyze(AnalysisContext &ctx) {
   if (name_.empty()) {
-    ctx.reportError("Function with empty name");
+    ctx.emitAnalysisError("Function with empty name", span_);
     return;
   }
 
   // check for duplicate function declaration
   auto existingFunc = ctx.lookupFunction(name_);
   if (existingFunc) {
-    ctx.reportError("Function '" + name_ + "' already declared");
+    ctx.emitAnalysisError("Function '" + name_ + "' already declared", span_);
     return;
   }
 
@@ -25,7 +25,7 @@ void FunctionNode::analyze(AnalysisContext &ctx) {
 
   // ensure valid return type
   if (!type_) {
-    ctx.reportError("Function '" + name_ + "' has no return type");
+    ctx.emitAnalysisError("Function '" + name_ + "' has no return type", span_);
     ctx.currentFunction = previousFunction;
     return;
   }
@@ -37,19 +37,19 @@ void FunctionNode::analyze(AnalysisContext &ctx) {
   std::set<std::string> paramNames;
   for (const auto &param : params) {
     if (param.first.empty()) {
-      ctx.reportError("Function '" + name_ + "' has parameter with empty name");
+      ctx.emitAnalysisError("Function '" + name_ + "' has parameter with empty name", span_);
       continue;
     }
 
     // check for duplicate parameters
     if (paramNames.count(param.first)) {
-      ctx.reportError("Function '" + name_ + "' has duplicate parameter '" + param.first + "'");
+      ctx.emitAnalysisError("Function '" + name_ + "' has duplicate parameter '" + param.first + "'", span_);
       continue;
     }
     paramNames.insert(param.first);
 
     if (!param.second) {
-      ctx.reportError("Parameter '" + param.first + "' in function '" + name_ + "' has no type");
+      ctx.emitAnalysisError("Parameter '" + param.first + "' in function '" + name_ + "' has no type", span_);
       continue;
     }
 
@@ -67,7 +67,7 @@ void FunctionNode::analyze(AnalysisContext &ctx) {
 
 void FunctionNode::analyzeBody(AnalysisContext &ctx) {
   if (!body_) {
-    ctx.reportError("Function '" + name_ + "' body is null");
+    ctx.emitAnalysisError("Function '" + name_ + "' body is null", span_);
     return;
   }
 
@@ -77,7 +77,7 @@ void FunctionNode::analyzeBody(AnalysisContext &ctx) {
   const auto &params = getParams();
   for (auto &param : params) {
     if (ctx.existsInCurrentScope(param.first)) {
-      ctx.reportError("Parameter '" + param.first + "' already declared in function scope");
+      ctx.emitAnalysisError("Parameter '" + param.first + "' already declared in function scope", span_);
       continue;
     }
     ctx.declareVariable(param.first, param.second);
@@ -89,7 +89,7 @@ void FunctionNode::analyzeBody(AnalysisContext &ctx) {
   // analyze each statement
   for (auto &stmt : *body_) {
     if (!stmt) {
-      ctx.reportError("Null statement in function '" + name_ + "' body");
+      ctx.emitAnalysisError("Null statement in function '" + name_ + "' body", span_);
       continue;
     }
 
@@ -109,7 +109,7 @@ void FunctionNode::analyzeBody(AnalysisContext &ctx) {
       bool isVoid = primitiveType->getType() == PrimitiveType::Void;
 
       if (!isVoid && !hasReturnStatement) {
-        ctx.reportError("Non-void function '" + name_ + "' missing return statement");
+        ctx.emitAnalysisError("Non-void function '" + name_ + "' missing return statement", span_);
       }
     }
   }

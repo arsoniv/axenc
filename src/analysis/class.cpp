@@ -8,14 +8,14 @@ namespace axen::ast {
 
 void ClassNode::analyze(AnalysisContext &ctx) {
   if (name_.empty()) {
-    ctx.reportError("Class with empty name");
+    ctx.emitAnalysisError("Class with empty name", span_);
     return;
   }
 
   // check for duplicate class declaration
   auto existingClass = ctx.lookupClass(name_);
   if (existingClass) {
-    ctx.reportError("Class '" + name_ + "' already declared");
+    ctx.emitAnalysisError("Class '" + name_ + "' already declared", span_);
     return;
   }
 
@@ -27,19 +27,19 @@ void ClassNode::analyze(AnalysisContext &ctx) {
   std::set<std::string> memberNames;
   for (const auto &member : members_) {
     if (member.first.empty()) {
-      ctx.reportError("Class '" + name_ + "' has member with empty name");
+      ctx.emitAnalysisError("Class '" + name_ + "' has member with empty name", span_);
       continue;
     }
 
     // check for duplicate members
     if (memberNames.count(member.first)) {
-      ctx.reportError("Class '" + name_ + "' has duplicate member '" + member.first + "'");
+      ctx.emitAnalysisError("Class '" + name_ + "' has duplicate member '" + member.first + "'", span_);
       continue;
     }
     memberNames.insert(member.first);
 
     if (!member.second) {
-      ctx.reportError("Member '" + member.first + "' in class '" + name_ + "' has no type");
+      ctx.emitAnalysisError("Member '" + member.first + "' in class '" + name_ + "' has no type", span_);
       continue;
     }
 

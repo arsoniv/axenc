@@ -18,26 +18,7 @@ namespace axen::ast {
 
 class TypeNode;
 class FunctionNode;
-
 class ClassNode;
-
-// symbol information for LSP
-struct SymbolInfo {
-  enum class Kind { Variable, Function, Parameter, Member, Class, Type };
-
-  std::string name;
-  Kind kind;
-  std::shared_ptr<TypeNode> type;
-  int scopeLevel;
-
-  std::string fileName;
-  int line;
-  int column;
-
-  SymbolInfo(std::string n, Kind k, std::shared_ptr<TypeNode> t = nullptr, int scope = 0, std::string file = "",
-             int l = 0, int c = 0)
-      : name(std::move(n)), kind(k), type(t), scopeLevel(scope), fileName(std::move(file)), line(l), column(c) {}
-};
 
 struct AnalysisContext {
   // each scope map element is a variable with its type
@@ -56,9 +37,7 @@ struct AnalysisContext {
 
   struct ErrorInfo {
     std::string message;
-    std::string location;
-    int row;
-    int col;
+    error::SourceSpan location;
   };
   std::vector<ErrorInfo> errors;
   bool collectErrors = false;
@@ -118,30 +97,13 @@ struct AnalysisContext {
     return nullptr;
   }
 
-  void emitAnalysisError(const std::string &msg) {
+  void emitAnalysisError(const std::string &msg, const error::SourceSpan &loc) {
     if (collectErrors) {
-      std::string location = currentFile;
-      if (!currentClass.empty()) {
-        location += "::" + currentClass;
-      }
-      errors.push_back({msg, location, currentRow, currentCol});
+      errors.push_back({msg, loc});
       // continue collecting errors, don't exit
       return;
     }
-    error::reportError(error::ErrorType::Semantic, msg);
-  }
-
-  void reportError(const std::string &msg) {
-    if (collectErrors) {
-      std::string location = currentFile;
-      if (!currentClass.empty()) {
-        location += "::" + currentClass;
-      }
-      errors.push_back({msg, location, currentRow, currentCol});
-      // continue collecting errors, don't exit
-      return;
-    }
-    error::reportError(error::ErrorType::Semantic, msg);
+    error::reportError(error::ErrorType::Semantic, msg, loc);
   }
 };
 
@@ -240,9 +202,9 @@ struct CodegenContext {
 
   bool existsInCurrentScope(const std::string &name) { return scopes.back().find(name) != scopes.back().end(); }
 
-  [[noreturn]] void emitCodegenError(const std::string &msg) { error::reportError(error::ErrorType::Codegen, msg); }
+  [[noreturn]] void emitCodegenError(const std::string &msg) { error::reportError(error::ErrorType::Codegen, msg, error::SourceSpan{}); }
 
-  [[noreturn]] void emitInternalError(const std::string &msg) { error::reportError(error::ErrorType::Internal, msg); }
+  [[noreturn]] void emitInternalError(const std::string &msg) { error::reportError(error::ErrorType::Internal, msg, error::SourceSpan{}); }
 };
 
 } // namespace axen::ast

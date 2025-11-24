@@ -12,17 +12,24 @@ namespace axen::ast {
 
 class TypeNode {
 public:
+  TypeNode(error::SourceSpan span) : span_(span) {}
   virtual ~TypeNode() = default;
   virtual void analyze(AnalysisContext &ctx) = 0;
   virtual llvm::Type *codeGen(CodegenContext &ctx) = 0;
 
   virtual bool isSigned() = 0;
+
+  const error::SourceSpan &getSpan() const { return span_; }
+
+protected:
+  error::SourceSpan span_;
 };
 
 class FunctionTypeNode : public TypeNode {
 public:
-  FunctionTypeNode(std::shared_ptr<TypeNode> returnType, std::vector<std::shared_ptr<TypeNode>> parameters)
-      : returnType_(returnType), parameters_(parameters) {}
+  FunctionTypeNode(std::shared_ptr<TypeNode> returnType, std::vector<std::shared_ptr<TypeNode>> parameters,
+                   error::SourceSpan span)
+      : TypeNode(span), returnType_(returnType), parameters_(parameters) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -39,7 +46,7 @@ private:
 
 class PointerTypeNode : public TypeNode {
 public:
-  PointerTypeNode(std::shared_ptr<TypeNode> target) : target_(target) {}
+  PointerTypeNode(std::shared_ptr<TypeNode> target, error::SourceSpan span) : TypeNode(span), target_(target) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -54,7 +61,8 @@ private:
 
 class ArrayTypeNode : public TypeNode {
 public:
-  ArrayTypeNode(std::shared_ptr<TypeNode> target, int length) : target_(target), length_(length) {}
+  ArrayTypeNode(std::shared_ptr<TypeNode> target, int length, error::SourceSpan span)
+      : TypeNode(span), target_(target), length_(length) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -87,7 +95,8 @@ enum class PrimitiveType {
 
 class PrimitiveTypeNode : public TypeNode {
 public:
-  PrimitiveTypeNode(PrimitiveType type, bool isSigned) : type_(type), isSigned_(isSigned) {}
+  PrimitiveTypeNode(PrimitiveType type, bool isSigned, error::SourceSpan span)
+      : TypeNode(span), type_(type), isSigned_(isSigned) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -105,7 +114,7 @@ private:
 
 class ClassReferenceNode : public TypeNode {
 public:
-  ClassReferenceNode(std::shared_ptr<ClassNode> decl) : decl_(decl) {}
+  ClassReferenceNode(std::shared_ptr<ClassNode> decl, error::SourceSpan span) : TypeNode(span), decl_(decl) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;

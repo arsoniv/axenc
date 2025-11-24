@@ -71,38 +71,32 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
     }
 
     int base = (numStr.size() > 2 && numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) ? 16 : 10;
-    auto node = std::make_unique<ast::IntLiteral>(std::stoi(numStr, nullptr, base), !isUnsigned);
-    node->setLocation(tok.row, tok.col);
-    return node;
+    return std::make_unique<ast::IntLiteral>(std::stoi(numStr, nullptr, base), !isUnsigned, makeSpan(tok));
   }
 
   case lexer::TokenType::StringLit: {
     auto tok = expect(lexer::TokenType::StringLit);
-    auto node = std::make_unique<ast::StringLiteral>(tok.src);
-    node->setLocation(tok.row, tok.col);
-    return node;
+    return std::make_unique<ast::StringLiteral>(tok.src, makeSpan(tok));
   }
 
   case lexer::TokenType::FloatLit: {
     auto tok = expect(lexer::TokenType::FloatLit);
-    auto node = std::make_unique<ast::FloatLiteral>(std::stof(tok.src));
-    node->setLocation(tok.row, tok.col);
-    return node;
+    return std::make_unique<ast::FloatLiteral>(std::stof(tok.src), makeSpan(tok));
   }
 
   case lexer::TokenType::Nullptr: {
     auto tok = expect(lexer::TokenType::Nullptr);
-    auto node = std::make_unique<ast::NullptrLiteral>();
-    node->setLocation(tok.row, tok.col);
-    return node;
+    return std::make_unique<ast::NullptrLiteral>(makeSpan(tok));
   }
 
   case lexer::TokenType::Minus:
     lexer_->consume();
     if (lexer_->peekT(lexer::TokenType::FloatLit)) {
-      return std::make_unique<ast::FloatLiteral>(0 - std::stof(expect(lexer::TokenType::FloatLit).src));
+      auto tok = expect(lexer::TokenType::FloatLit);
+      return std::make_unique<ast::FloatLiteral>(0 - std::stof(tok.src), makeSpan(tok));
     } else {
-      std::string intStr = expect(lexer::TokenType::IntLit).src;
+      auto tok = expect(lexer::TokenType::IntLit);
+      std::string intStr = tok.src;
 
       // check for 'u' (unsigned) suffix
       bool isUnsigned = false;
@@ -112,7 +106,7 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
       }
 
       int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
-      return std::make_unique<ast::IntLiteral>(0 - std::stoi(intStr, nullptr, base), !isUnsigned);
+      return std::make_unique<ast::IntLiteral>(0 - std::stoi(intStr, nullptr, base), !isUnsigned, makeSpan(tok));
     }
 
   case lexer::TokenType::Ampersand:
@@ -137,36 +131,27 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
 
       // check for function pointer variable
       auto varType = Parser::lookupVariableType(name);
+      auto span = makeSpan(nameToken);
       if (varType) {
         // could be a function pointer
-        auto varRef = std::make_unique<ast::VariableReference>(name, varType);
-        varRef->setLocation(nameToken.row, nameToken.col);
-
-        auto funcRef = std::make_unique<ast::FunctionReference>(std::move(varRef), varType);
-        funcRef->setLocation(nameToken.row, nameToken.col);
-
-        auto node = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), varType);
-        node->setLocation(nameToken.row, nameToken.col);
-        return node;
+        auto varRef = std::make_unique<ast::VariableReference>(name, varType, span);
+        auto funcRef = std::make_unique<ast::FunctionReference>(std::move(varRef), varType, span);
+        return std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), varType, span);
       } else {
         // normal function
         auto functionReturnType = Parser::lookupFunctionReturnType(name);
         auto type = functionReturnType ? functionReturnType
-                                       : std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false);
+                                       : std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false, span);
 
-        auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name));
-        funcRef->setLocation(nameToken.row, nameToken.col);
-
-        auto node = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), type);
-        node->setLocation(nameToken.row, nameToken.col);
-        return node;
+        auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name), span);
+        return std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), type, span);
       }
     } else {
       if (lexer_->peekT(lexer::TokenType::Identifier)) {
         if (intDefs_.contains(lexer_->peek().src)) {
           auto token = expect(lexer::TokenType::Identifier);
           auto [value, isSigned] = intDefs_.at(token.src);
-          return std::make_unique<ast::IntLiteral>(value, isSigned);
+          return std::make_unique<ast::IntLiteral>(value, isSigned, makeSpan(token));
         }
       }
 
@@ -232,10 +217,9 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
       }
     }
 
-    auto binop = std::make_unique<ast::BinaryOperation>(tokenToBinaryOp(tokType), std::move(lhs), std::move(rhs),
-                                                        lhs->getType());
-    binop->setLocation(lexer_->peek().row, lexer_->peek().col);
-    lhs = std::move(binop);
+    auto tok = lexer_->peek();
+    lhs = std::make_unique<ast::BinaryOperation>(tokenToBinaryOp(tokType), std::move(lhs), std::move(rhs),
+                                                 lhs->getType(), makeSpan(tok));
   }
 
   return lhs;

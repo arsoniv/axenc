@@ -15,6 +15,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   bool isDetached = currentClassName_.empty();
 
   // type (along with all type modifiers)
+  auto startToken = lexer_->peek();
   std::shared_ptr<ast::TypeNode> type = parseType();
 
   // name
@@ -41,7 +42,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   if (!isDetached && !currentClassName_.empty()) {
     auto thisType = getTypeNode(currentClassName_);
     if (thisType) {
-      auto thisPtrType = std::make_shared<ast::PointerTypeNode>(thisType);
+      auto thisPtrType = std::make_shared<ast::PointerTypeNode>(thisType, error::SourceSpan{});
       paramNames.emplace_back("this");
       paramTypes.emplace_back(thisPtrType);
     }
@@ -69,7 +70,8 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   std::optional<std::vector<std::unique_ptr<ast::StatementNode>>> body;
 
   // function may be bodyless, only parse body if it exists
-  if (lexer_->consume().type == lexer::TokenType::LBrace) {
+  auto bodyToken = lexer_->consume();
+  if (bodyToken.type == lexer::TokenType::LBrace) {
     body = std::vector<std::unique_ptr<ast::StatementNode>>();
 
     Parser::pushScope();
@@ -84,12 +86,13 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
       // above condition
       body->emplace_back(parseStatement());
     }
-    expect(lexer::TokenType::RBrace);
+    auto endToken = expect(lexer::TokenType::RBrace);
 
     Parser::popScope();
   }
 
-  auto functionType = std::make_unique<ast::FunctionTypeNode>(type, paramTypes);
-  return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body));
+  auto functionSpan = makeSpan(startToken.row, startToken.col, nameToken.row, static_cast<int>(nameToken.col + nameToken.src.length()));
+  auto functionType = std::make_unique<ast::FunctionTypeNode>(type, paramTypes, functionSpan);
+  return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body), functionSpan);
 }
 } // namespace axen::parser

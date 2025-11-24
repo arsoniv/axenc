@@ -11,13 +11,15 @@ namespace axen::parser {
 /// consumes a type (including type mods) and returns the resulting TypeNode. Returns nullptr if no type exists.
 std::shared_ptr<ast::TypeNode> Parser::parseType() {
   int ptrs = 0;
+  auto startToken = lexer_->peek();
 
   while (lexer_->peekT(lexer::TokenType::Ptr)) {
     ptrs++;
     lexer_->consume();
   }
 
-  std::shared_ptr<ast::TypeNode> newType = getTypeNode(lexer_->peek().src);
+  auto typeToken = lexer_->peek();
+  std::shared_ptr<ast::TypeNode> newType = getTypeNode(typeToken.src);
 
   if (newType) {
     lexer_->consume();
@@ -35,12 +37,14 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
         }
       }
 
-      expect(lexer::TokenType::RParen);
-      newType = std::make_shared<ast::FunctionTypeNode>(std::move(newType), std::move(params));
+      auto endToken = expect(lexer::TokenType::RParen);
+      auto funcSpan = makeSpan(startToken.row, startToken.col, endToken.row, static_cast<int>(endToken.col + endToken.src.length()));
+      newType = std::make_shared<ast::FunctionTypeNode>(std::move(newType), std::move(params), funcSpan);
     }
 
     // because 0 arraylen means not an array
     int arrayLen = 0;
+    lexer::Token endToken = typeToken;
 
     // parse array mod
     if (lexer_->peekT(lexer::TokenType::LBracket)) {
@@ -51,15 +55,16 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
       int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
       arrayLen = std::stoi(intStr, nullptr, base);
 
-      expect(lexer::TokenType::RBracket);
+      endToken = expect(lexer::TokenType::RBracket);
     }
 
+    auto typeSpan = makeSpan(startToken.row, startToken.col, endToken.row, static_cast<int>(endToken.col + endToken.src.length()));
     for (int i = 0; i < ptrs; i++) {
-      newType = std::make_shared<ast::PointerTypeNode>(newType);
+      newType = std::make_shared<ast::PointerTypeNode>(newType, typeSpan);
     }
 
     if (arrayLen) {
-      newType = std::make_shared<ast::ArrayTypeNode>(newType, arrayLen);
+      newType = std::make_shared<ast::ArrayTypeNode>(newType, arrayLen, typeSpan);
     }
 
     return newType;

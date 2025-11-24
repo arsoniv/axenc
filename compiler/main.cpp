@@ -37,13 +37,15 @@ int main(int argc, char **argv) {
           outputFile = argv[i + 1];
           i++;
         } else {
-          axen::error::reportError(axen::error::ErrorType::Syntax, "Invalid argument: '" + std::string(argv[i]) + "'");
+          axen::error::reportError(axen::error::ErrorType::Syntax, "Invalid argument: '" + std::string(argv[i]) + "'",
+                                   axen::error::SourceSpan{});
         }
       }
     }
 
     if (srcFile.empty()) {
-      axen::error::reportError(axen::error::ErrorType::Syntax, "Missing required argument: -f <source file>");
+      axen::error::reportError(axen::error::ErrorType::Syntax, "Missing required argument: -f <source file>",
+                               axen::error::SourceSpan{});
     }
 
     axen::ast::CodegenContext ctx(srcFile);
@@ -52,7 +54,8 @@ int main(int argc, char **argv) {
 
     std::ifstream in(srcFile);
     if (!in) {
-      axen::error::reportError(axen::error::ErrorType::Syntax, "Could not open file: '" + srcPath.string() + "'");
+      axen::error::reportError(axen::error::ErrorType::Syntax, "Could not open file: '" + srcPath.string() + "'",
+                               axen::error::SourceSpan{});
     }
 
     std::ostringstream ss;
@@ -62,7 +65,8 @@ int main(int argc, char **argv) {
     std::string className = srcPath.stem().string();
 
     if (className.empty()) {
-      axen::error::reportError(axen::error::ErrorType::Internal, "Invalid class name derived from file path");
+      axen::error::reportError(axen::error::ErrorType::Internal, "Invalid class name derived from file path",
+                               axen::error::SourceSpan{});
     }
 
     std::unique_ptr<axen::parser::Parser> parser =
@@ -91,7 +95,8 @@ int main(int argc, char **argv) {
       if (!analysisCtx.errors.empty()) {
         fprintf(stderr, "Semantic analysis found %zu error(s):\n", analysisCtx.errors.size());
         for (const auto &error : analysisCtx.errors) {
-          fprintf(stderr, "  %s at %s:%d:%d\n", error.message.c_str(), error.location.c_str(), error.row, error.col);
+          fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.location.file.c_str(),
+                  error.location.startRow, error.location.startCol);
         }
         return 1;
       }
@@ -105,8 +110,8 @@ int main(int argc, char **argv) {
       }
 
     } catch (axen::error::CompilerException &e) {
-      fprintf(stderr, "Error during compilation:\n%s\nIn: %s; at [%d:%d]\n", e.what(), e.getLocation().fileName.c_str(),
-              e.getRow(), e.getCol());
+      fprintf(stderr, "Error during compilation:\n%s\nIn: %s; at [%d:%d]\n", e.what(), e.getLocation().file.c_str(),
+              e.getLocation().startRow, e.getLocation().startCol);
     }
 
     std::string errorStr;

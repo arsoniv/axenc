@@ -14,8 +14,8 @@ namespace axen::ast {
 
 class ClassNode {
 public:
-  ClassNode(std::string name, std::map<std::string, std::shared_ptr<TypeNode>> &&members)
-      : name_(name), members_(std::move(members)) {}
+  ClassNode(std::string name, std::map<std::string, std::shared_ptr<TypeNode>> &&members, error::SourceSpan span)
+      : name_(name), members_(std::move(members)), span_(span) {}
 
   llvm::StructType *codeGen(CodegenContext &ctx);
   void analyze(AnalysisContext &ctx);
@@ -31,7 +31,7 @@ public:
       return static_cast<int>(std::distance(members_.begin(), it));
     }
     error::reportError(error::ErrorType::Internal,
-                       "Could not find index of member '" + name + "' in struct '" + name_ + "'");
+                       "Could not find index of member '" + name + "' in struct '" + name_ + "'", error::SourceSpan{});
     return -1; // unreachable
   }
 
@@ -44,9 +44,12 @@ public:
   /// returns all data members
   const std::map<std::string, std::shared_ptr<TypeNode>> &getMembers() const { return members_; }
 
+  const error::SourceSpan &getSpan() const { return span_; }
+
 private:
   std::string name_;
   std::map<std::string, std::shared_ptr<TypeNode>> members_;
+  error::SourceSpan span_;
 };
 
 } // namespace axen::ast

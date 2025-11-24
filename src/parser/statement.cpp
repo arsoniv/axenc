@@ -16,27 +16,21 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
   case lexer::TokenType::Return: {
     auto tok = lexer_->peek();
     lexer_->consume();
+    auto span = makeSpan(tok);
 
     if (lexer_->peekT(lexer::TokenType::Semi)) {
       lexer_->consume();
-
-      auto stmt = std::make_unique<ast::Return>(nullptr);
-      stmt->setLocation(tok.row, tok.col);
-      return stmt;
-
+      return std::make_unique<ast::Return>(nullptr, span);
     } else {
-
       std::unique_ptr<ast::ExpressionNode> returnValue = parseExpression(lexer::TokenType::Semi);
       expect(lexer::TokenType::Semi);
-
-      auto stmt = std::make_unique<ast::Return>(std::move(returnValue));
-      stmt->setLocation(tok.row, tok.col);
-      return stmt;
+      return std::make_unique<ast::Return>(std::move(returnValue), span);
     }
   }
   case lexer::TokenType::If: {
     auto tok = lexer_->peek();
     lexer_->consume();
+    auto span = makeSpan(tok);
 
     expect(lexer::TokenType::LParen);
     std::unique_ptr<ast::ExpressionNode> condition = parseExpression(lexer::TokenType::RParen);
@@ -68,13 +62,12 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       expect(lexer::TokenType::RBrace);
     }
 
-    auto stmt = std::make_unique<ast::If>(std::move(condition), std::move(trueBody), std::move(falseBody));
-    stmt->setLocation(tok.row, tok.col);
-    return stmt;
+    return std::make_unique<ast::If>(std::move(condition), std::move(trueBody), std::move(falseBody), span);
   }
   case lexer::TokenType::While: {
     auto tok = lexer_->peek();
     lexer_->consume();
+    auto span = makeSpan(tok);
 
     expect(lexer::TokenType::LParen);
     std::unique_ptr<ast::ExpressionNode> condition = parseExpression(lexer::TokenType::RParen);
@@ -91,9 +84,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     expect(lexer::TokenType::RBrace);
 
-    auto stmt = std::make_unique<ast::While>(std::move(condition), std::move(body));
-    stmt->setLocation(tok.row, tok.col);
-    return stmt;
+    return std::make_unique<ast::While>(std::move(condition), std::move(body), span);
   }
   default:
     break;
@@ -120,9 +111,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     Parser::indexVariableType(name, type);
 
-    auto stmt = std::make_unique<ast::VariableDeclaration>(type, std::move(name), std::move(initialValue));
-    stmt->setLocation(nameToken.row, nameToken.col);
-    return stmt;
+    return std::make_unique<ast::VariableDeclaration>(type, std::move(name), std::move(initialValue), makeSpan(nameToken));
   } else {
 
     // check if it's a detatched function call first
@@ -144,16 +133,13 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       expect(lexer::TokenType::Semi);
 
       auto functionReturnType = Parser::lookupFunctionReturnType(name);
+      auto span = makeSpan(nameToken);
 
-      auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name));
-      funcRef->setLocation(nameToken.row, nameToken.col);
+      auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name), span);
 
       // functionReturnType may be nullptr, catch in analysis
-      auto call = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType);
-      call->setLocation(nameToken.row, nameToken.col);
-      auto stmt = std::make_unique<ast::ExpressionStatement>(std::move(call));
-      stmt->setLocation(nameToken.row, nameToken.col);
-      return stmt;
+      auto call = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType, span);
+      return std::make_unique<ast::ExpressionStatement>(std::move(call), span);
     }
 
     // parse lvalue
@@ -162,11 +148,8 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
     // check if this is a method call statement
     if (dynamic_cast<ast::FunctionCall *>(target.get())) {
       expect(lexer::TokenType::Semi);
-      int row = target->getRow();
-      int col = target->getCol();
-      auto stmt = std::make_unique<ast::ExpressionStatement>(std::move(target));
-      stmt->setLocation(row, col);
-      return stmt;
+      auto span = target->getSpan();
+      return std::make_unique<ast::ExpressionStatement>(std::move(target), span);
     }
 
     auto eqToken = expect(lexer::TokenType::Equals);
@@ -175,9 +158,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     expect(lexer::TokenType::Semi);
 
-    auto stmt = std::make_unique<ast::AssignmentStatement>(std::move(target), std::move(newValue));
-    stmt->setLocation(eqToken.row, eqToken.col);
-    return stmt;
+    return std::make_unique<ast::AssignmentStatement>(std::move(target), std::move(newValue), makeSpan(eqToken));
   }
 }
 } // namespace axen::parser

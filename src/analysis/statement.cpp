@@ -6,22 +6,22 @@
 namespace axen::ast {
 
 void VariableDeclaration::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (name_.empty()) {
-    ctx.reportError("Variable declaration with empty name");
+    ctx.emitAnalysisError("Variable declaration with empty name", span_);
     return;
   }
 
   // ensure variable does not already exist in current scope
   if (ctx.existsInCurrentScope(name_)) {
-    ctx.reportError("Variable '" + name_ + "' already declared in this scope");
+    ctx.emitAnalysisError("Variable '" + name_ + "' already declared in this scope", span_);
     return;
   }
 
   if (!type_) {
-    ctx.reportError("Variable '" + name_ + "' has no type");
+    ctx.emitAnalysisError("Variable '" + name_ + "' has no type", span_);
     return;
   }
   type_->analyze(ctx);
@@ -31,7 +31,7 @@ void VariableDeclaration::analyze(AnalysisContext &ctx) {
 
     auto initType = initialValue_->getType();
     if (!initType) {
-      ctx.reportError("Cannot determine type of initializer for variable '" + name_ + "'");
+      ctx.emitAnalysisError("Cannot determine type of initializer for variable '" + name_ + "'", span_);
     }
   }
 
@@ -39,47 +39,47 @@ void VariableDeclaration::analyze(AnalysisContext &ctx) {
 }
 
 void AssignmentStatement::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!target_) {
-    ctx.reportError("Assignment with null target");
+    ctx.emitAnalysisError("Assignment with null target", span_);
     return;
   }
   target_->analyze(ctx);
 
   auto targetType = target_->getType();
   if (!targetType) {
-    ctx.reportError("Cannot determine type of assignment target");
+    ctx.emitAnalysisError("Cannot determine type of assignment target", span_);
     return;
   }
 
   if (!value_) {
-    ctx.reportError("Assignment with null value");
+    ctx.emitAnalysisError("Assignment with null value", span_);
     return;
   }
   value_->analyze(ctx);
 
   auto valueType = value_->getType();
   if (!valueType) {
-    ctx.reportError("Cannot determine type of assignment value");
+    ctx.emitAnalysisError("Cannot determine type of assignment value", span_);
     return;
   }
 }
 
 void Return::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   // ensure return statement is in a function
   if (!ctx.currentFunction) {
-    ctx.reportError("Return statement outside of function");
+    ctx.emitAnalysisError("Return statement outside of function", span_);
     return;
   }
 
   auto expectedReturnType = ctx.currentFunction->getReturnType();
   if (!expectedReturnType) {
-    ctx.reportError("Current function has no return type");
+    ctx.emitAnalysisError("Current function has no return type", span_);
     return;
   }
 
@@ -93,43 +93,43 @@ void Return::analyze(AnalysisContext &ctx) {
 
     auto returnType = value_->getType();
     if (!returnType) {
-      ctx.reportError("Cannot determine type of return value");
+      ctx.emitAnalysisError("Cannot determine type of return value", span_);
       return;
     }
 
     if (isVoidReturn) {
-      ctx.reportError("Cannot return a value from void function");
+      ctx.emitAnalysisError("Cannot return a value from void function", span_);
       return;
     }
 
   } else {
     // should be a void function return
     if (!isVoidReturn) {
-      ctx.reportError("Non-void function must return a value");
+      ctx.emitAnalysisError("Non-void function must return a value", span_);
     }
   }
 }
 
 void If::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!condition_) {
-    ctx.reportError("If statement with null condition");
+    ctx.emitAnalysisError("If statement with null condition", span_);
     return;
   }
   condition_->analyze(ctx);
 
   auto condType = condition_->getType();
   if (!condType) {
-    ctx.reportError("Cannot determine type of if condition");
+    ctx.emitAnalysisError("Cannot determine type of if condition", span_);
     return;
   }
 
   // ensure condition is a primitive type
   auto condPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(condType);
   if (!condPrimType) {
-    ctx.reportError("If condition must be an integer or boolean type");
+    ctx.emitAnalysisError("If condition must be an integer or boolean type", span_);
     return;
   }
 
@@ -137,7 +137,7 @@ void If::analyze(AnalysisContext &ctx) {
   ctx.pushScope();
   for (auto &stmt : trueBody_) {
     if (!stmt) {
-      ctx.reportError("Null statement in if true body");
+      ctx.emitAnalysisError("Null statement in if true body", span_);
       continue;
     }
     stmt->analyze(ctx);
@@ -149,7 +149,7 @@ void If::analyze(AnalysisContext &ctx) {
     ctx.pushScope();
     for (auto &stmt : *falseBody_) {
       if (!stmt) {
-        ctx.reportError("Null statement in if false body");
+        ctx.emitAnalysisError("Null statement in if false body", span_);
         continue;
       }
       stmt->analyze(ctx);
@@ -159,25 +159,25 @@ void If::analyze(AnalysisContext &ctx) {
 }
 
 void While::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!condition_) {
-    ctx.reportError("While statement with null condition");
+    ctx.emitAnalysisError("While statement with null condition", span_);
     return;
   }
   condition_->analyze(ctx);
 
   auto condType = condition_->getType();
   if (!condType) {
-    ctx.reportError("Cannot determine type of while condition");
+    ctx.emitAnalysisError("Cannot determine type of while condition", span_);
     return;
   }
 
   // ensure condition is a primitive type
   auto condPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(condType);
   if (!condPrimType) {
-    ctx.reportError("While condition must be an integer or boolean type");
+    ctx.emitAnalysisError("While condition must be an integer or boolean type", span_);
     return;
   }
 
@@ -185,7 +185,7 @@ void While::analyze(AnalysisContext &ctx) {
   ctx.pushScope();
   for (auto &stmt : body_) {
     if (!stmt) {
-      ctx.reportError("Null statement in while body");
+      ctx.emitAnalysisError("Null statement in while body", span_);
       continue;
     }
     stmt->analyze(ctx);
@@ -194,17 +194,17 @@ void While::analyze(AnalysisContext &ctx) {
 }
 
 void ExpressionStatement::analyze(AnalysisContext &ctx) {
-  ctx.currentRow = row_;
-  ctx.currentCol = col_;
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
 
   if (!expression_) {
-    ctx.reportError("Expression statement with null expression");
+    ctx.emitAnalysisError("Expression statement with null expression", span_);
     return;
   }
   expression_->analyze(ctx);
 
   if (!expression_->getType()) {
-    ctx.reportError("Expression has no type");
+    ctx.emitAnalysisError("Expression has no type", span_);
   }
 }
 

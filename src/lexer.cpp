@@ -143,8 +143,8 @@ Token Lexer::nextToken() {
         }
       }
       if (srcCursor_ >= src_.length()) {
-        error::SourceLocation loc("", "", newToken.row, newToken.col, "\"");
-        error::reportError(error::ErrorType::Syntax, "Unterminated string literal", &loc);
+        error::SourceSpan loc{"", newToken.row, newToken.col, newToken.row, newToken.col + 1};
+        error::reportError(error::ErrorType::Syntax, "Unterminated string literal", loc);
       }
       consumeChar(); // consume closing quote
       newToken.type = TokenType::StringLit;
@@ -169,8 +169,8 @@ Token Lexer::nextToken() {
       newToken.src = std::move(newKeyword); // newKeyword is not needed anymore
       return newToken;
     }
-    error::SourceLocation loc("", "", row_, col_, std::string(1, peekChar()));
-    error::reportError(error::ErrorType::Syntax, "Invalid character found during lexing", &loc);
+    error::SourceSpan loc{"", row_, col_, row_, col_ + 1};
+    error::reportError(error::ErrorType::Syntax, "Invalid character found during lexing", loc);
   }
   return {
       .type = TokenType::EndOfFile,

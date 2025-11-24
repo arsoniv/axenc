@@ -133,12 +133,13 @@ void Parser::parseFile() {
 
     case lexer::TokenType::Class: {
       // parse class
-      lexer_->consume();
+      auto classToken = lexer_->consume();
       auto classNameToken = expect(lexer::TokenType::Identifier);
       validateIdentifier(classNameToken.src);
       currentClassName_ = classNameToken.src;
       expect(lexer::TokenType::LBrace);
-      parseClass();
+      auto classSpan = makeSpan(classToken);
+      parseClass(classSpan);
       expect(lexer::TokenType::RBrace);
       currentClassName_.clear();
       break;
