@@ -65,6 +65,8 @@ public:
   std::vector<std::unique_ptr<ast::FunctionNode>> &getFunctionsMut() { return functions_; }
   const std::vector<std::shared_ptr<ast::ClassNode>> *getClasses() const { return &classes_; }
   const std::vector<std::map<std::string, std::shared_ptr<ast::TypeNode>>> &getScopes() const { return scopes; }
+  const std::map<std::string, std::shared_ptr<ast::TypeNode>> &getTypeDefs() const { return types_; }
+  const std::map<std::string, std::pair<int, bool>> &getIntDefs() const { return intDefs_; }
 
   std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
