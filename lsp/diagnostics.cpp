@@ -72,24 +72,6 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     diagnostics << R"({"range":{"start":{"line":)" << line << ",\"character\":" << col << R"(},"end":{"line":)" << line
                 << ",\"character\":" << (col + 1) << R"(}},"severity":1,"message":")" << escapeJsonString(e.what())
                 << "\"}";
-  } catch (const std::exception &e) {
-    if (!first_diagnostic) {
-      diagnostics << ",";
-    }
-    first_diagnostic = false;
-
-    diagnostics << R"({"range":{"start":{"line":0,"character":0},)"
-                << R"("end":{"line":0,"character":1}},)"
-                << R"("severity":1,"message":")" << escapeJsonString(e.what()) << "\"}";
-  } catch (...) {
-    if (!first_diagnostic) {
-      diagnostics << ",";
-    }
-    first_diagnostic = false;
-
-    diagnostics << R"({"range":{"start":{"line":0,"character":0},)"
-                << R"("end":{"line":0,"character":1}},)"
-                << R"("severity":1,"message":"Unknown compilation error"})";
   }
 
   diagnostics << "]";
