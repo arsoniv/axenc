@@ -44,9 +44,6 @@ void ClassNode::analyze(AnalysisContext &ctx) {
     }
 
     member.second->analyze(ctx);
-
-    // add member symbols to index
-    ctx.allSymbols.emplace_back(member.first, SymbolInfo::Kind::Member, member.second, 0, ctx.currentFile, 0, 0);
   }
 
   ctx.registerClass(name_, std::shared_ptr<ClassNode>(this, [](ClassNode *) {}));

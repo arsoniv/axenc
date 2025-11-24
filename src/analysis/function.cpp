@@ -54,9 +54,6 @@ void FunctionNode::analyze(AnalysisContext &ctx) {
     }
 
     param.second->analyze(ctx);
-
-    // add parameter symbols to index (for lsp)
-    ctx.allSymbols.emplace_back(param.first, SymbolInfo::Kind::Parameter, param.second, 0, ctx.currentFile, 0, 0);
   }
 
   ctx.registerFunction(name_, this);

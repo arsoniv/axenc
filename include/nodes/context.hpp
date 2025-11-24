@@ -43,26 +43,17 @@ struct AnalysisContext {
   // each scope map element is a variable with its type
   std::vector<std::map<std::string, std::shared_ptr<TypeNode>>> scopes;
 
-  // function registry for function lookup
   std::map<std::string, FunctionNode *> functions;
-
-  // class/struct registry
   std::map<std::string, std::shared_ptr<ClassNode>> classes;
-
-  // type aliases registry
   std::map<std::string, std::shared_ptr<TypeNode>> typeAliases;
 
-  // all symbols (for LSP features)
-  std::vector<SymbolInfo> allSymbols;
-
-  // current context (for error reporting)
+  // current context
   std::string currentFile;
   std::string currentClass;
   FunctionNode *currentFunction = nullptr;
   int currentRow = 0;
   int currentCol = 0;
 
-  // error collection (instead of immediate exit)
   struct ErrorInfo {
     std::string message;
     std::string location;
@@ -79,10 +70,7 @@ struct AnalysisContext {
       scopes.pop_back();
   }
 
-  void declareVariable(const std::string &name, std::shared_ptr<TypeNode> type) {
-    scopes.back()[name] = type;
-    allSymbols.emplace_back(name, SymbolInfo::Kind::Variable, type, scopes.size() - 1, currentFile, 0, 0);
-  }
+  void declareVariable(const std::string &name, std::shared_ptr<TypeNode> type) { scopes.back()[name] = type; }
 
   std::shared_ptr<TypeNode> lookupVariable(const std::string &name) {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
@@ -110,10 +98,7 @@ struct AnalysisContext {
     return nullptr;
   }
 
-  void registerClass(const std::string &name, std::shared_ptr<ClassNode> classNode) {
-    classes[name] = classNode;
-    allSymbols.emplace_back(name, SymbolInfo::Kind::Class, nullptr, 0, currentFile, 0, 0);
-  }
+  void registerClass(const std::string &name, std::shared_ptr<ClassNode> classNode) { classes[name] = classNode; }
 
   std::shared_ptr<ClassNode> lookupClass(const std::string &name) {
     auto it = classes.find(name);
@@ -123,10 +108,7 @@ struct AnalysisContext {
     return nullptr;
   }
 
-  void registerTypeAlias(const std::string &alias, std::shared_ptr<TypeNode> type) {
-    typeAliases[alias] = type;
-    allSymbols.emplace_back(alias, SymbolInfo::Kind::Type, type, 0, currentFile, 0, 0);
-  }
+  void registerTypeAlias(const std::string &alias, std::shared_ptr<TypeNode> type) { typeAliases[alias] = type; }
 
   std::shared_ptr<TypeNode> lookupTypeAlias(const std::string &alias) {
     auto it = typeAliases.find(alias);
