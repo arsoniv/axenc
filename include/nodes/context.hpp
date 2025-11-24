@@ -20,13 +20,20 @@ class TypeNode;
 class FunctionNode;
 class ClassNode;
 
+enum class SymbolType {
+  Function,
+  Class,
+  Type,
+  TypeAlias,
+  IntAlias,
+};
+
 struct AnalysisContext {
   // each scope map element is a variable with its type
   std::vector<std::map<std::string, std::shared_ptr<TypeNode>>> scopes;
 
   std::map<std::string, FunctionNode *> functions;
   std::map<std::string, std::shared_ptr<ClassNode>> classes;
-  std::map<std::string, std::shared_ptr<TypeNode>> typeAliases;
 
   // current context
   std::string currentFile;
@@ -82,16 +89,6 @@ struct AnalysisContext {
   std::shared_ptr<ClassNode> lookupClass(const std::string &name) {
     auto it = classes.find(name);
     if (it != classes.end()) {
-      return it->second;
-    }
-    return nullptr;
-  }
-
-  void registerTypeAlias(const std::string &alias, std::shared_ptr<TypeNode> type) { typeAliases[alias] = type; }
-
-  std::shared_ptr<TypeNode> lookupTypeAlias(const std::string &alias) {
-    auto it = typeAliases.find(alias);
-    if (it != typeAliases.end()) {
       return it->second;
     }
     return nullptr;
@@ -202,9 +199,13 @@ struct CodegenContext {
 
   bool existsInCurrentScope(const std::string &name) { return scopes.back().find(name) != scopes.back().end(); }
 
-  [[noreturn]] void emitCodegenError(const std::string &msg) { error::reportError(error::ErrorType::Codegen, msg, error::SourceSpan{}); }
+  [[noreturn]] void emitCodegenError(const std::string &msg) {
+    error::reportError(error::ErrorType::Codegen, msg, error::SourceSpan{});
+  }
 
-  [[noreturn]] void emitInternalError(const std::string &msg) { error::reportError(error::ErrorType::Internal, msg, error::SourceSpan{}); }
+  [[noreturn]] void emitInternalError(const std::string &msg) {
+    error::reportError(error::ErrorType::Internal, msg, error::SourceSpan{});
+  }
 };
 
 } // namespace axen::ast
