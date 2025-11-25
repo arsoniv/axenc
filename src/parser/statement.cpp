@@ -69,7 +69,8 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
     // parse the scope
     // NOTE: we should not need to keep track of braces in becuase parseStatement should consume rbrace before the loop
     // checks it.
-    while (!lexer_->peekT(lexer::TokenType::Else) && !lexer_->peekT(lexer::TokenType::RBrace)) {
+    while (!lexer_->peekT(lexer::TokenType::Else) && !lexer_->peekT(lexer::TokenType::RBrace) &&
+           !lexer_->peekT(lexer::TokenType::EndOfFile)) {
       auto stmt = parseStatement();
       if (stmt) {
         trueBody.emplace_back(std::move(stmt));
@@ -85,7 +86,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       expect(lexer::TokenType::LBrace);
 
       falseBody = std::vector<std::unique_ptr<ast::StatementNode>>();
-      while (!lexer_->peekT(lexer::TokenType::RBrace)) {
+      while (!lexer_->peekT(lexer::TokenType::RBrace) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
         auto stmt = parseStatement();
         if (stmt) {
           falseBody->emplace_back(std::move(stmt));
@@ -113,7 +114,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
     std::vector<std::unique_ptr<ast::StatementNode>> body;
 
     // parse the scope
-    while (!lexer_->peekT(lexer::TokenType::RBrace)) {
+    while (!lexer_->peekT(lexer::TokenType::RBrace) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
       auto stmt = parseStatement();
       if (stmt) {
         body.emplace_back(std::move(stmt));
@@ -163,7 +164,7 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       expect(lexer::TokenType::LParen);
 
       auto functionArgs = std::vector<std::unique_ptr<ast::ExpressionNode>>();
-      while (lexer_->peek().type != lexer::TokenType::RParen) {
+      while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
         functionArgs.emplace_back(parseExpression(lexer::TokenType::Comma));
         if (lexer_->peek().type == lexer::TokenType::Comma) {
           lexer_->consume();

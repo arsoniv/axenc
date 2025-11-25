@@ -159,7 +159,7 @@ void Parser::parseFile() {
 // NOTE: this function only parses class functions (parses within a class)
 void Parser::parseFunctions() {
 
-  while (lexer_->peek().type != lexer::TokenType::EndOfFile && lexer_->peek().type != lexer::TokenType::RBrace) {
+  while (!lexer_->peekT(lexer::TokenType::EndOfFile) && !lexer_->peekT(lexer::TokenType::RBrace)) {
     switch (lexer_->peek().type) {
 
     case lexer::TokenType::Typedef:

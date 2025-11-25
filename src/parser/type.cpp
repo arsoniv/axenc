@@ -43,7 +43,7 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
       }
 
       auto endToken = expect(lexer::TokenType::RParen);
-      auto funcSpan = makeSpan(startToken.row, startToken.col, endToken.row, static_cast<int>(endToken.col + endToken.src.length()));
+      auto funcSpan = makeSpan(startToken.row, startToken.col, endToken.row, endToken.col + endToken.src.length());
       newType = std::make_shared<ast::FunctionTypeNode>(std::move(newType), std::move(params), funcSpan);
     }
 
@@ -63,7 +63,7 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
       endToken = expect(lexer::TokenType::RBracket);
     }
 
-    auto typeSpan = makeSpan(startToken.row, startToken.col, endToken.row, static_cast<int>(endToken.col + endToken.src.length()));
+    auto typeSpan = makeSpan(startToken.row, startToken.col, endToken.row, endToken.col + endToken.src.length());
     for (int i = 0; i < ptrs; i++) {
       newType = std::make_shared<ast::PointerTypeNode>(newType, typeSpan);
     }

@@ -21,7 +21,7 @@ void Parser::parseClass(error::SourceSpan span) {
   std::map<std::string, std::shared_ptr<ast::TypeNode>> members;
 
   // first pass, parse member variables
-  while (lexer_->peek().type != lexer::TokenType::EndOfFile && lexer_->peek().type != lexer::TokenType::RBrace) {
+  while (!lexer_->peekT(lexer::TokenType::RBrace) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
 
     auto type = parseType();
     auto token = expect(lexer::TokenType::Identifier);
@@ -38,7 +38,7 @@ void Parser::parseClass(error::SourceSpan span) {
     // type and identifier have already been consumed
 
     expect(lexer::TokenType::LParen);
-    while (lexer_->peek().type != lexer::TokenType::RParen) {
+    while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
       if (lexer_->peek().type != lexer::TokenType::RParen && lexer_->peek().type != lexer::TokenType::Comma) {
         parseType();
         auto token = expect(lexer::TokenType::Identifier);
@@ -53,7 +53,7 @@ void Parser::parseClass(error::SourceSpan span) {
     if (lexer_->peekT(lexer::TokenType::LBrace)) {
       lexer_->consume();
       int braceDepth = 1;
-      while (braceDepth > 0 && lexer_->peek().type != lexer::TokenType::EndOfFile) {
+      while (braceDepth > 0 && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
         if (lexer_->peek().type == lexer::TokenType::LBrace) {
           braceDepth++;
         } else if (lexer_->peek().type == lexer::TokenType::RBrace) {

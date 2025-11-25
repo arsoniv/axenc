@@ -175,7 +175,9 @@ Token Lexer::nextToken() {
   }
   return {
       .type = TokenType::EndOfFile,
-      .src = src_.substr(srcCursor_),
+      .src = "",
+      .row = row_,
+      .col = col_,
   };
 }
 

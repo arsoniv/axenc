@@ -121,7 +121,7 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
       expect(lexer::TokenType::LParen);
 
       auto functionArgs = std::vector<std::unique_ptr<ast::ExpressionNode>>();
-      while (lexer_->peek().type != lexer::TokenType::RParen) {
+      while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
         functionArgs.emplace_back(parseExpression(lexer::TokenType::Comma));
         if (lexer_->peek().type == lexer::TokenType::Comma) {
           lexer_->consume();
@@ -140,8 +140,9 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
       } else {
         // normal function
         auto functionReturnType = Parser::lookupFunctionReturnType(name);
-        auto type = functionReturnType ? functionReturnType
-                                       : std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false, span);
+        auto type = functionReturnType
+                        ? functionReturnType
+                        : std::make_shared<ast::PrimitiveTypeNode>(ast::PrimitiveType::Void, false, span);
 
         auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name), span);
         return std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), type, span);
@@ -168,6 +169,7 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
 
   default:
     emitSyntaxError("Unexpected token in expression");
+    lexer_->consume();
     return nullptr; // unreachable
   }
 }
@@ -185,7 +187,7 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
     return false;
   };
 
-  while (!isTerminator()) {
+  while (!isTerminator() && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
     auto tokType = lexer_->peek().type;
 
     if (tokType == lexer::TokenType::Equals && !lexer_->peekT(lexer::TokenType::Equals, 1)) {

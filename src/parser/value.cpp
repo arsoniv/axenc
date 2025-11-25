@@ -1,5 +1,6 @@
 #include <memory>
 
+#include "lexer.hpp"
 #include "nodes/expression.hpp"
 #include "nodes/type.hpp"
 #include "parser.hpp"
@@ -125,12 +126,12 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
         // use the derivedType for 'this' argument
         auto fieldSpan = makeSpan(fieldToken);
-        auto thisArg =
-            std::make_unique<ast::AddressOf>(std::move(target), std::make_shared<ast::PointerTypeNode>(derivedType, fieldSpan), fieldSpan);
+        auto thisArg = std::make_unique<ast::AddressOf>(
+            std::move(target), std::make_shared<ast::PointerTypeNode>(derivedType, fieldSpan), fieldSpan);
         functionArgs.push_back(std::move(thisArg));
 
         // parse remaining arguments
-        while (lexer_->peek().type != lexer::TokenType::RParen) {
+        while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
           functionArgs.emplace_back(parseExpression(lexer::TokenType::Comma));
           if (lexer_->peek().type == lexer::TokenType::Comma) {
             lexer_->consume();
@@ -146,11 +147,12 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
         auto functionReturnType = Parser::lookupFunctionReturnType(methodName);
 
-        auto funcRef = std::make_unique<ast::FunctionReference>(methodName, Parser::lookupFunctionType(methodName), fieldSpan);
+        auto funcRef =
+            std::make_unique<ast::FunctionReference>(methodName, Parser::lookupFunctionType(methodName), fieldSpan);
 
         // functionReturnType may be nullptr, will be caught in analysis
-        auto call =
-            std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType, fieldSpan);
+        auto call = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType,
+                                                        fieldSpan);
         return {std::move(call), functionReturnType};
       }
 
@@ -165,7 +167,8 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
       // create struct access with available info
       auto fieldSpan = makeSpan(fieldToken);
-      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, structType, fieldType, fieldSpan);
+      target = std::make_unique<ast::StructAccess>(std::move(target), fieldName, structName, structType, fieldType,
+                                                   fieldSpan);
       derivedType = fieldType;
 
       // apply member dereferences
@@ -197,18 +200,22 @@ std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> 
 
         std::unique_ptr<ast::ExpressionNode> indexExpression = parseExpression(lexer::TokenType::RBracket);
         auto endBracket = expect(lexer::TokenType::RBracket);
-        auto accessSpan = makeSpan(nameToken.row, nameToken.col, endBracket.row, static_cast<int>(endBracket.col + endBracket.src.length()));
+        auto accessSpan =
+            makeSpan(nameToken.row, nameToken.col, endBracket.row, endBracket.col + endBracket.src.length());
 
         // Create appropriate access node based on type if known
         if (arrayType) {
-          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), arrayType, accessSpan);
+          target =
+              std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), arrayType, accessSpan);
           derivedType = arrayType->target();
         } else if (ptrType) {
-          target = std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression), ptrType, accessSpan);
+          target =
+              std::make_unique<ast::PtrIndexAccess>(std::move(target), std::move(indexExpression), ptrType, accessSpan);
           derivedType = ptrType->target();
         } else {
           // unknown type, use ArrayAccess as default, will be caught in analysis
-          target = std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), nullptr, accessSpan);
+          target =
+              std::make_unique<ast::ArrayAccess>(std::move(target), std::move(indexExpression), nullptr, accessSpan);
         }
 
         // apply postfix dereferences

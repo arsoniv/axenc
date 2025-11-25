@@ -97,13 +97,13 @@ private:
   int getNextTypeLength();
   std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> parseValue();
 
-  inline void emitSyntaxError(const std::string &msg) {
+  inline void emitSyntaxError(const std::string msg) {
     auto tok = lexer_->peek();
     error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
     errors_.push_back({msg, loc});
   }
 
-  inline void emitSemanticError(const std::string &msg) {
+  inline void emitSemanticError(const std::string msg) {
     auto tok = lexer_->peek();
     error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
     errors_.push_back({msg, loc});
@@ -124,8 +124,7 @@ private:
         expectedString = "<identifier>";
       }
 
-      emitSyntaxError("Expected token: '" + expectedString + "'");
-      return lexer_->peek();
+      synchronizeToNextStatement();
     }
     return lexer_->consume();
   }

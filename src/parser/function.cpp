@@ -48,7 +48,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     }
   }
 
-  while (lexer_->peek().type != lexer::TokenType::RParen) {
+  while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
     // type (along with all type modifiers)
     auto paramType = parseType();
     if (!paramType) {
@@ -86,7 +86,7 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
       Parser::indexVariableType(paramNames.at(i), paramTypes.at(i));
     }
 
-    while (!lexer_->peekT(lexer::TokenType::RBrace)) {
+    while (!lexer_->peekT(lexer::TokenType::RBrace) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
       // NOTE: we don't need to keep track of braces because braces (from inner scopes) should be consumed before the
       // above condition
       auto stmt = parseStatement();
