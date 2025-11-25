@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 
     llvm::TargetOptions opt;
     auto RM = std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
-    auto targetMachine = target->createTargetMachine(triple, CPU, features, opt, RM);
+    std::unique_ptr<llvm::TargetMachine> targetMachine(target->createTargetMachine(triple, CPU, features, opt, RM));
 
     ctx.module->setDataLayout(targetMachine->createDataLayout());
 
