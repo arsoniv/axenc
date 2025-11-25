@@ -51,6 +51,11 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
   while (lexer_->peek().type != lexer::TokenType::RParen) {
     // type (along with all type modifiers)
     auto paramType = parseType();
+    if (!paramType) {
+      emitSyntaxError("Expected type in function parameter list");
+      synchronizeToNextStatement();
+      break;
+    }
 
     // name is consumed
     auto token = expect(lexer::TokenType::Identifier);

@@ -30,7 +30,12 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
       auto params = std::vector<std::shared_ptr<ast::TypeNode>>();
       while (!lexer_->peekT(lexer::TokenType::RParen)) {
 
-        params.emplace_back(parseType());
+        auto paramType = parseType();
+        if (!paramType) {
+          emitSyntaxError("Expected type in function pointer parameter list");
+          break;
+        }
+        params.emplace_back(paramType);
 
         if (lexer_->peekT(lexer::TokenType::Comma)) {
           lexer_->consume();
