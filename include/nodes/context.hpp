@@ -24,8 +24,7 @@ enum class SymbolType {
   Function,
   Class,
   Type,
-  TypeAlias,
-  IntAlias,
+  Variable,
 };
 
 struct AnalysisContext {
@@ -42,12 +41,26 @@ struct AnalysisContext {
   int currentRow = 0;
   int currentCol = 0;
 
+  // for lsp completions
+  std::map<std::string, SymbolType> contextSymbols;
+  int cRow = 0;
+  int cCol = 0;
+
+  void addContextSymbol(const std::string &name, SymbolType type) { contextSymbols[name] = type; }
+
+  bool isSpanBeforeCursor(const error::SourceSpan &span) {
+    if (span.endRow < cRow)
+      return true;
+    if (span.endRow == cRow && span.endCol < cCol)
+      return true;
+    return false;
+  }
+
   struct ErrorInfo {
     std::string message;
     error::SourceSpan location;
   };
   std::vector<ErrorInfo> errors;
-  bool collectErrors = false;
 
   void pushScope() { scopes.push_back({}); }
 
@@ -94,14 +107,7 @@ struct AnalysisContext {
     return nullptr;
   }
 
-  void emitAnalysisError(const std::string &msg, const error::SourceSpan &loc) {
-    if (collectErrors) {
-      errors.push_back({msg, loc});
-      // continue collecting errors, don't exit
-      return;
-    }
-    error::reportError(error::ErrorType::Semantic, msg, loc);
-  }
+  void emitAnalysisError(const std::string &msg, const error::SourceSpan &loc) { errors.push_back({msg, loc}); }
 };
 
 struct CodegenContext {

@@ -46,6 +46,9 @@ void ClassNode::analyze(AnalysisContext &ctx) {
     member.second->analyze(ctx);
   }
 
+  if (ctx.isSpanBeforeCursor(this->getSpan())) {
+    ctx.addContextSymbol(name_, SymbolType::Class);
+  }
   ctx.registerClass(name_, std::shared_ptr<ClassNode>(this, [](ClassNode *) {}));
 
   // restore class context

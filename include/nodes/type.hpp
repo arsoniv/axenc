@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <llvm/IR/Type.h>
@@ -91,6 +92,22 @@ enum class PrimitiveType {
   Float,
   Double,
   Quad,
+};
+
+// from type to string
+inline const std::unordered_map<PrimitiveType, std::string> primitiveTypeToString = {
+    {PrimitiveType::Void, "void"},   {PrimitiveType::Bool, "bool"},   {PrimitiveType::Char, "char"},
+    {PrimitiveType::Short, "short"}, {PrimitiveType::Int, "int"},     {PrimitiveType::Long, "long"},
+    {PrimitiveType::Half, "half"},   {PrimitiveType::Float, "float"}, {PrimitiveType::Double, "double"},
+    {PrimitiveType::Quad, "quad"},
+};
+
+// from string to type
+inline const std::unordered_map<std::string, PrimitiveType> stringToPrimitiveType = {
+    {"void", PrimitiveType::Void},   {"bool", PrimitiveType::Bool},   {"char", PrimitiveType::Char},
+    {"short", PrimitiveType::Short}, {"int", PrimitiveType::Int},     {"long", PrimitiveType::Long},
+    {"half", PrimitiveType::Half},   {"float", PrimitiveType::Float}, {"double", PrimitiveType::Double},
+    {"quad", PrimitiveType::Quad},
 };
 
 class PrimitiveTypeNode : public TypeNode {

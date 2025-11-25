@@ -18,6 +18,11 @@
 
 namespace axen::parser {
 
+struct ErrorInfo {
+  std::string message;
+  error::SourceSpan location;
+};
+
 class Parser {
 public:
   Parser(std::string &&sourceCode, std::string filePath = "")
@@ -67,6 +72,7 @@ public:
   const std::vector<std::map<std::string, std::shared_ptr<ast::TypeNode>>> &getScopes() const { return scopes; }
   const std::map<std::string, std::shared_ptr<ast::TypeNode>> &getTypeDefs() const { return types_; }
   const std::map<std::string, std::pair<int, bool>> &getIntDefs() const { return intDefs_; }
+  const std::vector<ErrorInfo> &getErrors() const { return errors_; }
 
   std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
@@ -91,6 +97,7 @@ private:
   std::unique_ptr<ast::ExpressionNode> parseBinaryOpRHS(int exprPrec, std::unique_ptr<ast::ExpressionNode> lhs,
                                                         lexer::TokenType terminator);
   std::unique_ptr<ast::StatementNode> parseStatement();
+  void synchronizeToNextStatement();
   std::shared_ptr<ast::TypeNode> parseType();
   int getNextTypeLength();
   std::pair<std::unique_ptr<ast::ExpressionNode>, std::shared_ptr<ast::TypeNode>> parseValue();
@@ -222,5 +229,7 @@ private:
 
   // for tracking imports
   std::set<std::string> importedFiles_;
+
+  std::vector<ErrorInfo> errors_;
 };
 } // namespace axen::parser

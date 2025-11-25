@@ -2,6 +2,7 @@
 #include <optional>
 #include <utility>
 
+#include "error.hpp"
 #include "lexer.hpp"
 #include "nodes/expression.hpp"
 #include "nodes/statement.hpp"
@@ -9,6 +10,36 @@
 #include "parser.hpp"
 
 namespace axen::parser {
+
+// concumes tokens until the next statement is found, reports a error
+void Parser::synchronizeToNextStatement() {
+  error::SourceSpan span = {.file = currentFileName_, .startRow = lexer_->peek().row, .startCol = lexer_->peek().col};
+
+  while (!lexer_->peekT(lexer::TokenType::EndOfFile)) {
+    switch (lexer_->peek().type) {
+    case lexer::TokenType::Semi:
+      span.endRow = lexer_->peek().row;
+      span.endCol = lexer_->peek().col;
+      lexer_->consume();
+      errors_.push_back({"Invalid Syntax: could not parse statement", span});
+      return;
+    case lexer::TokenType::Return:
+    case lexer::TokenType::If:
+    case lexer::TokenType::While:
+    case lexer::TokenType::RBrace:
+      span.endRow = lexer_->peek().row;
+      span.endCol = lexer_->peek().col;
+      errors_.push_back({"Invalid Syntax: could not parse statement", span});
+      return;
+    default:
+      lexer_->consume();
+      continue;
+    }
+  }
+
+  errors_.push_back({"Invalid Syntax: could not parse statement", span});
+}
+
 /// consumes a statement and returns the resulting StatementNode
 std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
@@ -45,7 +76,11 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
     // NOTE: we should not need to keep track of braces in becuase parseStatement should consume rbrace before the loop
     // checks it.
     while (!lexer_->peekT(lexer::TokenType::Else) && !lexer_->peekT(lexer::TokenType::RBrace)) {
-      trueBody.emplace_back(parseStatement());
+      try {
+        trueBody.emplace_back(parseStatement());
+      } catch (const error::CompilerException &) {
+        synchronizeToNextStatement();
+      }
     }
     expect(lexer::TokenType::RBrace);
     if (lexer_->peekT(lexer::TokenType::Else)) {
@@ -56,7 +91,11 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
       falseBody = std::vector<std::unique_ptr<ast::StatementNode>>();
       while (!lexer_->peekT(lexer::TokenType::RBrace)) {
-        falseBody->emplace_back(parseStatement());
+        try {
+          falseBody->emplace_back(parseStatement());
+        } catch (const error::CompilerException &) {
+          synchronizeToNextStatement();
+        }
       }
 
       expect(lexer::TokenType::RBrace);
@@ -79,7 +118,11 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     // parse the scope
     while (!lexer_->peekT(lexer::TokenType::RBrace)) {
-      body.emplace_back(parseStatement());
+      try {
+        body.emplace_back(parseStatement());
+      } catch (const error::CompilerException &) {
+        synchronizeToNextStatement();
+      }
     }
 
     expect(lexer::TokenType::RBrace);
@@ -111,7 +154,8 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     Parser::indexVariableType(name, type);
 
-    return std::make_unique<ast::VariableDeclaration>(type, std::move(name), std::move(initialValue), makeSpan(nameToken));
+    return std::make_unique<ast::VariableDeclaration>(type, std::move(name), std::move(initialValue),
+                                                      makeSpan(nameToken));
   } else {
 
     // check if it's a detatched function call first
@@ -138,7 +182,8 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       auto funcRef = std::make_unique<ast::FunctionReference>(name, Parser::lookupFunctionType(name), span);
 
       // functionReturnType may be nullptr, catch in analysis
-      auto call = std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType, span);
+      auto call =
+          std::make_unique<ast::FunctionCall>(std::move(funcRef), std::move(functionArgs), functionReturnType, span);
       return std::make_unique<ast::ExpressionStatement>(std::move(call), span);
     }
 

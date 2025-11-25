@@ -21,51 +21,48 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
 
   bool first_diagnostic = true;
 
-  try {
-    auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath);
-    // parse
-    parser->parse();
+  auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath);
+  // parse
+  parser->parse();
 
-    // run semantic analysis
-    axen::ast::AnalysisContext analysisCtx;
-    analysisCtx.currentFile = filePath;
-    analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
+  // run semantic analysis
+  axen::ast::AnalysisContext analysisCtx;
+  analysisCtx.currentFile = filePath;
 
-    // analyze all classes
-    for (const auto &_class : *parser->getClasses()) {
-      _class->analyze(analysisCtx);
-    }
+  // analyze all classes
+  for (const auto &_class : *parser->getClasses()) {
+    _class->analyze(analysisCtx);
+  }
 
-    // analyze all functions
-    for (const auto &func : *parser->getFunctions()) {
-      func->analyze(analysisCtx);
-    }
+  // analyze all functions
+  for (const auto &func : *parser->getFunctions()) {
+    func->analyze(analysisCtx);
+  }
 
-    // report analysis errors as diagnostics
-    for (const auto &error : analysisCtx.errors) {
-      if (!first_diagnostic) {
-        diagnostics << ",";
-      }
-      first_diagnostic = false;
-
-      diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
-                  << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
-                  << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
-                  << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
-    }
-
-  } catch (const axen::error::CompilerException &e) {
+  // report parsing errors as diagnostics
+  for (const auto &error : parser->getErrors()) {
     if (!first_diagnostic) {
       diagnostics << ",";
     }
     first_diagnostic = false;
 
-    int line = e.getLocation().startRow > 0 ? e.getLocation().startRow - 1 : 0;
-    int col = e.getLocation().startCol > 0 ? e.getLocation().startCol - 1 : 0;
+    diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
+                << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
+                << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
+                << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
+  }
 
-    diagnostics << R"({"range":{"start":{"line":)" << line << ",\"character\":" << col << R"(},"end":{"line":)" << line
-                << ",\"character\":" << (col + 1) << R"(}},"severity":1,"message":")" << escapeJsonString(e.what())
-                << "\"}";
+  // report analysis errors as diagnostics
+  for (const auto &error : analysisCtx.errors) {
+    if (!first_diagnostic) {
+      diagnostics << ",";
+    }
+    first_diagnostic = false;
+
+    diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
+                << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
+                << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
+                << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
   }
 
   diagnostics << "]";

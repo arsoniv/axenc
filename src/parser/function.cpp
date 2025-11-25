@@ -84,7 +84,11 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     while (!lexer_->peekT(lexer::TokenType::RBrace)) {
       // NOTE: we don't need to keep track of braces because braces (from inner scopes) should be consumed before the
       // above condition
-      body->emplace_back(parseStatement());
+      try {
+        body->emplace_back(parseStatement());
+      } catch (const error::CompilerException &) {
+        synchronizeToNextStatement();
+      }
     }
     auto endToken = expect(lexer::TokenType::RBrace);
 

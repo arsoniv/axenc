@@ -72,46 +72,47 @@ int main(int argc, char **argv) {
     std::unique_ptr<axen::parser::Parser> parser =
         std::make_unique<axen::parser::Parser>(std::move(sourceCode), srcPath);
 
-    try {
-      // parse
-      parser->parse();
+    // parse
+    parser->parse();
 
-      // run semantic analysis
-      axen::ast::AnalysisContext analysisCtx;
-      analysisCtx.currentFile = srcPath.string();
-      analysisCtx.collectErrors = true; // collect all errors instead of exiting after first error
+    // run semantic analysis
+    axen::ast::AnalysisContext analysisCtx;
+    analysisCtx.currentFile = srcPath.string();
 
-      // analyze all classes first (so that functions can use them)
-      for (const auto &classNode : *parser->getClasses()) {
-        classNode->analyze(analysisCtx);
+    // analyze all classes first (so that functions can use them)
+    for (const auto &classNode : *parser->getClasses()) {
+      classNode->analyze(analysisCtx);
+    }
+
+    // analyze all functions
+    for (const auto &func : *parser->getFunctions()) {
+      func->analyze(analysisCtx);
+    }
+
+    // report any errors
+    if (!parser->getErrors().empty()) {
+      fprintf(stderr, "Parsing found %zu error(s):\n", parser->getErrors().size());
+      for (const auto &error : parser->getErrors()) {
+        fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.location.file.c_str(),
+                error.location.startRow, error.location.startCol);
       }
-
-      // analyze all functions
-      for (const auto &func : *parser->getFunctions()) {
-        func->analyze(analysisCtx);
+      return 1;
+    }
+    if (!analysisCtx.errors.empty()) {
+      fprintf(stderr, "Semantic analysis found %zu error(s):\n", analysisCtx.errors.size());
+      for (const auto &error : analysisCtx.errors) {
+        fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.location.file.c_str(),
+                error.location.startRow, error.location.startCol);
       }
+      return 1;
+    }
 
-      // report any errors
-      if (!analysisCtx.errors.empty()) {
-        fprintf(stderr, "Semantic analysis found %zu error(s):\n", analysisCtx.errors.size());
-        for (const auto &error : analysisCtx.errors) {
-          fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.location.file.c_str(),
-                  error.location.startRow, error.location.startCol);
-        }
-        return 1;
-      }
-
-      // generate code
-      for (const auto &structure : *parser->getClasses()) {
-        structure->codeGen(ctx);
-      }
-      for (const auto &func : *parser->getFunctions()) {
-        func->codeGen(ctx);
-      }
-
-    } catch (axen::error::CompilerException &e) {
-      fprintf(stderr, "Error during compilation:\n%s\nIn: %s; at [%d:%d]\n", e.what(), e.getLocation().file.c_str(),
-              e.getLocation().startRow, e.getLocation().startCol);
+    // generate code
+    for (const auto &structure : *parser->getClasses()) {
+      structure->codeGen(ctx);
+    }
+    for (const auto &func : *parser->getFunctions()) {
+      func->codeGen(ctx);
     }
 
     std::string errorStr;

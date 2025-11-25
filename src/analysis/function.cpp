@@ -56,6 +56,9 @@ void FunctionNode::analyze(AnalysisContext &ctx) {
     param.second->analyze(ctx);
   }
 
+  if (ctx.isSpanBeforeCursor(this->getSpan())) {
+    ctx.addContextSymbol(name_, SymbolType::Function);
+  }
   ctx.registerFunction(name_, this);
 
   if (body_)

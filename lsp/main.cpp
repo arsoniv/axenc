@@ -28,6 +28,7 @@ void Lsp::sendError(const std::string &id, int code, const std::string &message)
 
 void Lsp::handleInitialize(const std::string &id) {
   std::string result = "{\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1},"
+                       "\"completionProvider\":{\"resolveProvider\":false},"
                        "\"hoverProvider\":false,\"definitionProvider\":false},"
                        "\"serverInfo\":{\"name\":\"axenlsp\","
                        "\"version\":\"0.0.1\"}}";
@@ -194,6 +195,8 @@ void Lsp::run() {
       handleDidChange(params);
     } else if (method == "textDocument/didClose") {
       handleDidClose(params);
+    } else if (method == "textDocument/completion") {
+      handleCompletion(id, params);
     }
 
     free(request);
