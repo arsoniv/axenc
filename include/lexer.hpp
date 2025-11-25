@@ -3,6 +3,9 @@
 #include <deque>
 #include <string>
 #include <unordered_map>
+#include <vector>
+
+#include "error.hpp"
 
 namespace axen::lexer {
 enum class TokenType {
@@ -96,6 +99,8 @@ public:
   [[nodiscard]] bool peekT(TokenType t, unsigned int offset = 0);
   Token consume();
 
+  const std::vector<error::ErrorInfo> &getErrors() const { return errors_; }
+
   struct LexerState {
     size_t srcCursor;
     std::deque<Token> lookAhead;
@@ -120,6 +125,11 @@ private:
   [[nodiscard]] char peekChar(unsigned int offset = 0) const;
   char consumeChar();
 
+  inline void emitError(const std::string &msg, int row, int col) {
+    error::SourceSpan loc{"", row, col, row, col + 1};
+    errors_.push_back({msg, loc});
+  }
+
   const std::string src_;
   size_t srcCursor_ = 0;
 
@@ -128,5 +138,7 @@ private:
 
   int row_ = 1;
   int col_ = 1;
+
+  std::vector<error::ErrorInfo> errors_;
 };
 } // namespace axen::lexer

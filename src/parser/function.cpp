@@ -84,9 +84,10 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     while (!lexer_->peekT(lexer::TokenType::RBrace)) {
       // NOTE: we don't need to keep track of braces because braces (from inner scopes) should be consumed before the
       // above condition
-      try {
-        body->emplace_back(parseStatement());
-      } catch (const error::CompilerException &) {
+      auto stmt = parseStatement();
+      if (stmt) {
+        body->emplace_back(std::move(stmt));
+      } else {
         synchronizeToNextStatement();
       }
     }
@@ -95,8 +96,10 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
     Parser::popScope();
   }
 
-  auto functionSpan = makeSpan(startToken.row, startToken.col, nameToken.row, static_cast<int>(nameToken.col + nameToken.src.length()));
+  auto functionSpan =
+      makeSpan(startToken.row, startToken.col, nameToken.row, static_cast<int>(nameToken.col + nameToken.src.length()));
   auto functionType = std::make_unique<ast::FunctionTypeNode>(type, paramTypes, functionSpan);
-  return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body), functionSpan);
+  return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body),
+                                             functionSpan);
 }
 } // namespace axen::parser

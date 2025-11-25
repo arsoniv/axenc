@@ -56,11 +56,7 @@ struct AnalysisContext {
     return false;
   }
 
-  struct ErrorInfo {
-    std::string message;
-    error::SourceSpan location;
-  };
-  std::vector<ErrorInfo> errors;
+  std::vector<error::ErrorInfo> errors;
 
   void pushScope() { scopes.push_back({}); }
 
@@ -205,13 +201,9 @@ struct CodegenContext {
 
   bool existsInCurrentScope(const std::string &name) { return scopes.back().find(name) != scopes.back().end(); }
 
-  [[noreturn]] void emitCodegenError(const std::string &msg) {
-    error::reportError(error::ErrorType::Codegen, msg, error::SourceSpan{});
-  }
+  [[noreturn]] void emitCodegenError(const std::string &msg) { throw std::runtime_error("Codegen Error: " + msg); }
 
-  [[noreturn]] void emitInternalError(const std::string &msg) {
-    error::reportError(error::ErrorType::Internal, msg, error::SourceSpan{});
-  }
+  [[noreturn]] void emitInternalError(const std::string &msg) { throw std::runtime_error("Internal Error: " + msg); }
 };
 
 } // namespace axen::ast

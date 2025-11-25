@@ -13,23 +13,17 @@ namespace axen::parser {
 
 // concumes tokens until the next statement is found, reports a error
 void Parser::synchronizeToNextStatement() {
-  error::SourceSpan span = {.file = currentFileName_, .startRow = lexer_->peek().row, .startCol = lexer_->peek().col};
-
   while (!lexer_->peekT(lexer::TokenType::EndOfFile)) {
     switch (lexer_->peek().type) {
     case lexer::TokenType::Semi:
-      span.endRow = lexer_->peek().row;
-      span.endCol = lexer_->peek().col;
       lexer_->consume();
-      errors_.push_back({"Invalid Syntax: could not parse statement", span});
+      emitSyntaxError("Invalid Syntax: could not parse statement");
       return;
     case lexer::TokenType::Return:
     case lexer::TokenType::If:
     case lexer::TokenType::While:
     case lexer::TokenType::RBrace:
-      span.endRow = lexer_->peek().row;
-      span.endCol = lexer_->peek().col;
-      errors_.push_back({"Invalid Syntax: could not parse statement", span});
+      emitSyntaxError("Invalid Syntax: could not parse statement");
       return;
     default:
       lexer_->consume();
@@ -37,7 +31,7 @@ void Parser::synchronizeToNextStatement() {
     }
   }
 
-  errors_.push_back({"Invalid Syntax: could not parse statement", span});
+  emitSyntaxError("Invalid Syntax: could not parse statement");
 }
 
 /// consumes a statement and returns the resulting StatementNode
@@ -76,9 +70,10 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
     // NOTE: we should not need to keep track of braces in becuase parseStatement should consume rbrace before the loop
     // checks it.
     while (!lexer_->peekT(lexer::TokenType::Else) && !lexer_->peekT(lexer::TokenType::RBrace)) {
-      try {
-        trueBody.emplace_back(parseStatement());
-      } catch (const error::CompilerException &) {
+      auto stmt = parseStatement();
+      if (stmt) {
+        trueBody.emplace_back(std::move(stmt));
+      } else {
         synchronizeToNextStatement();
       }
     }
@@ -91,9 +86,10 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
       falseBody = std::vector<std::unique_ptr<ast::StatementNode>>();
       while (!lexer_->peekT(lexer::TokenType::RBrace)) {
-        try {
-          falseBody->emplace_back(parseStatement());
-        } catch (const error::CompilerException &) {
+        auto stmt = parseStatement();
+        if (stmt) {
+          falseBody->emplace_back(std::move(stmt));
+        } else {
           synchronizeToNextStatement();
         }
       }
@@ -118,9 +114,10 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
 
     // parse the scope
     while (!lexer_->peekT(lexer::TokenType::RBrace)) {
-      try {
-        body.emplace_back(parseStatement());
-      } catch (const error::CompilerException &) {
+      auto stmt = parseStatement();
+      if (stmt) {
+        body.emplace_back(std::move(stmt));
+      } else {
         synchronizeToNextStatement();
       }
     }

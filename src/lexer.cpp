@@ -1,7 +1,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "error.hpp"
 #include "lexer.hpp"
 
 namespace axen::lexer {
@@ -143,8 +142,10 @@ Token Lexer::nextToken() {
         }
       }
       if (srcCursor_ >= src_.length()) {
-        error::SourceSpan loc{"", newToken.row, newToken.col, newToken.row, newToken.col + 1};
-        error::reportError(error::ErrorType::Syntax, "Unterminated string literal", loc);
+        emitError("Unterminated string literal", newToken.row, newToken.col);
+        newToken.type = TokenType::StringLit;
+        newToken.src = std::move(stringContent);
+        return newToken;
       }
       consumeChar(); // consume closing quote
       newToken.type = TokenType::StringLit;
@@ -169,8 +170,8 @@ Token Lexer::nextToken() {
       newToken.src = std::move(newKeyword); // newKeyword is not needed anymore
       return newToken;
     }
-    error::SourceSpan loc{"", row_, col_, row_, col_ + 1};
-    error::reportError(error::ErrorType::Syntax, "Invalid character found during lexing", loc);
+    emitError("Invalid character found during lexing", row_, col_);
+    consumeChar();
   }
   return {
       .type = TokenType::EndOfFile,

@@ -36,6 +36,11 @@ void Parser::parse() {
 
   processImports();
   parseFile();
+
+  // add lexer errors
+  for (const auto &error : lexer_->getErrors()) {
+    errors_.push_back(error);
+  }
 }
 
 void Parser::processImports() {

@@ -46,10 +46,10 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     }
     first_diagnostic = false;
 
-    diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
-                << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
-                << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
-                << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
+    diagnostics << R"({"range":{"start":{"line":)" << error.span.startRow - 1
+                << ",\"character\":" << error.span.startCol - 1 << R"(},"end":{"line":)" << error.span.endRow - 1
+                << ",\"character\":" << error.span.endCol - 1 << R"(}},"severity":1,"message":")"
+                << escapeJsonString(error.message) << "\"}";
   }
 
   // report analysis errors as diagnostics
@@ -59,10 +59,10 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
     }
     first_diagnostic = false;
 
-    diagnostics << R"({"range":{"start":{"line":)" << error.location.startRow - 1
-                << ",\"character\":" << error.location.startCol - 1 << R"(},"end":{"line":)"
-                << error.location.endRow - 1 << ",\"character\":" << error.location.endCol - 1
-                << R"(}},"severity":1,"message":")" << escapeJsonString(error.message) << "\"}";
+    diagnostics << R"({"range":{"start":{"line":)" << error.span.startRow - 1
+                << ",\"character\":" << error.span.startCol - 1 << R"(},"end":{"line":)" << error.span.endRow - 1
+                << ",\"character\":" << error.span.endCol - 1 << R"(}},"severity":1,"message":")"
+                << escapeJsonString(error.message) << "\"}";
   }
 
   diagnostics << "]";

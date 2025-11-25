@@ -18,11 +18,6 @@
 
 namespace axen::parser {
 
-struct ErrorInfo {
-  std::string message;
-  error::SourceSpan location;
-};
-
 class Parser {
 public:
   Parser(std::string &&sourceCode, std::string filePath = "")
@@ -72,7 +67,7 @@ public:
   const std::vector<std::map<std::string, std::shared_ptr<ast::TypeNode>>> &getScopes() const { return scopes; }
   const std::map<std::string, std::shared_ptr<ast::TypeNode>> &getTypeDefs() const { return types_; }
   const std::map<std::string, std::pair<int, bool>> &getIntDefs() const { return intDefs_; }
-  const std::vector<ErrorInfo> &getErrors() const { return errors_; }
+  const std::vector<error::ErrorInfo> &getErrors() const { return errors_; }
 
   std::shared_ptr<ast::TypeNode> lookupVariableType(const std::string &name) {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
@@ -105,13 +100,13 @@ private:
   inline void emitSyntaxError(const std::string &msg) {
     auto tok = lexer_->peek();
     error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
-    error::reportError(error::ErrorType::Syntax, msg, loc);
+    errors_.push_back({msg, loc});
   }
 
   inline void emitSemanticError(const std::string &msg) {
     auto tok = lexer_->peek();
     error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
-    error::reportError(error::ErrorType::Semantic, msg, loc);
+    errors_.push_back({msg, loc});
   }
 
   // parsing utils
@@ -129,9 +124,8 @@ private:
         expectedString = "<identifier>";
       }
 
-      auto tok = lexer_->peek();
-      error::SourceSpan loc{currentFileName_, tok.row, tok.col, tok.row, static_cast<int>(tok.col + tok.src.length())};
-      error::reportError(error::ErrorType::Syntax, "Expected token: '" + expectedString + "'", loc);
+      emitSyntaxError("Expected token: '" + expectedString + "'");
+      return lexer_->peek();
     }
     return lexer_->consume();
   }
@@ -230,6 +224,6 @@ private:
   // for tracking imports
   std::set<std::string> importedFiles_;
 
-  std::vector<ErrorInfo> errors_;
+  std::vector<error::ErrorInfo> errors_;
 };
 } // namespace axen::parser

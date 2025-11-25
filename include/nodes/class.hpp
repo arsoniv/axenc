@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include <llvm/IR/DerivedTypes.h>
@@ -30,9 +31,7 @@ public:
     if (it != members_.end()) {
       return static_cast<int>(std::distance(members_.begin(), it));
     }
-    error::reportError(error::ErrorType::Internal,
-                       "Could not find index of member '" + name + "' in struct '" + name_ + "'", error::SourceSpan{});
-    return -1; // unreachable
+    throw std::runtime_error("Could not find index of member '" + name + "' in struct '" + name_ + "'");
   }
 
   const std::string &getName() const { return name_; }
