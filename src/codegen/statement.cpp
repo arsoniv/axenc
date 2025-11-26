@@ -115,6 +115,8 @@ void If::codeGen(CodegenContext &ctx) {
     ctx.emitCodegenError("If statement condition must be integer type");
   }
 
+  condValue = ctx.convertIfNeeded(condValue, llvm::Type::getInt1Ty(ctx.llvmContext), false);
+
   if (falseBody_) {
     ctx.builder.CreateCondBr(condValue, thenBB, elseBB);
   } else {
