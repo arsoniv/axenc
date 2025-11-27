@@ -127,12 +127,17 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
 
       auto functionArgs = std::vector<std::unique_ptr<ast::ExpressionNode>>();
       while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
-        functionArgs.emplace_back(parseExpression(lexer::TokenType::Comma));
+        auto newExpression = parseExpression(lexer::TokenType::Comma);
+        if (!newExpression) {
+          emitSyntaxError("Invalid expression in function call arguments");
+          break;
+        }
+        functionArgs.emplace_back(std::move(newExpression));
         if (lexer_->peek().type == lexer::TokenType::Comma) {
           lexer_->consume();
         }
       }
-      lexer_->consume();
+      expect(lexer::TokenType::RParen);
 
       // check for function pointer variable
       auto varType = Parser::lookupVariableType(name);
