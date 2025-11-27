@@ -212,6 +212,9 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
     }
 
     auto rhs = parsePrimaryExpression(terminator);
+    if (!rhs) {
+      return nullptr;
+    }
 
     auto nextTokType = lexer_->peek().type;
     if (!isTerminator()) {
@@ -234,6 +237,9 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
 
 std::unique_ptr<ast::ExpressionNode> Parser::parseExpression(lexer::TokenType terminator) {
   auto lhs = parsePrimaryExpression(terminator);
+  if (!lhs) {
+    return nullptr;
+  }
   return parseBinaryOpRHS(0, std::move(lhs), terminator);
 }
 
