@@ -148,9 +148,9 @@ private:
 class StringLiteral : public ExpressionNode {
 public:
   StringLiteral(std::string value, error::SourceSpan span)
-      : value_(value),
-        ExpressionNode(
-            std::make_shared<PointerTypeNode>(std::make_shared<PrimitiveTypeNode>(PrimitiveType::Char, false, span), span), span) {}
+      : value_(value), ExpressionNode(std::make_shared<PointerTypeNode>(
+                                          std::make_shared<PrimitiveTypeNode>(PrimitiveType::Char, false, span), span),
+                                      span) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Value *codeGen(CodegenContext &ctx) override;
@@ -162,8 +162,9 @@ private:
 class NullptrLiteral : public ExpressionNode {
 public:
   NullptrLiteral(error::SourceSpan span)
-      : ExpressionNode(
-            std::make_shared<PointerTypeNode>(std::make_shared<PrimitiveTypeNode>(PrimitiveType::Void, true, span), span), span) {}
+      : ExpressionNode(std::make_shared<PointerTypeNode>(
+                           std::make_shared<PrimitiveTypeNode>(PrimitiveType::Void, true, span), span),
+                       span) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Value *codeGen(CodegenContext &ctx) override;
@@ -229,6 +230,20 @@ private:
   BinaryOperationType opType_;
   std::unique_ptr<ExpressionNode> L_;
   std::unique_ptr<ExpressionNode> R_;
+};
+
+class SizeOf : public ExpressionNode {
+public:
+  SizeOf(std::shared_ptr<TypeNode> targetType, error::SourceSpan span)
+      : targetType_(targetType),
+        // sizeof returns a unsigned long
+        ExpressionNode(std::make_shared<PrimitiveTypeNode>(PrimitiveType::Long, false, span), span) {}
+
+  void analyze(AnalysisContext &ctx) override;
+  llvm::Value *codeGen(CodegenContext &ctx) override;
+
+private:
+  std::shared_ptr<TypeNode> targetType_;
 };
 
 } // namespace axen::ast

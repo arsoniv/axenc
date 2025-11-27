@@ -322,7 +322,8 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
     const auto &paramTypes = funcType->getParameters();
     if (args_.size() != paramTypes.size()) {
       ctx.emitAnalysisError("Function pointer expects " + std::to_string(paramTypes.size()) + " argument(s) but " +
-                      std::to_string(args_.size()) + " provided", span_);
+                                std::to_string(args_.size()) + " provided",
+                            span_);
     }
 
     // update type_ to the function's return type
@@ -342,8 +343,9 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
     size_t expectedArgCount = params.size();
 
     if (args_.size() != expectedArgCount) {
-      ctx.emitAnalysisError("Function '" + funcName + "' expects " + std::to_string(expectedArgCount) + " argument(s) but " +
-                      std::to_string(args_.size()) + " provided", span_);
+      ctx.emitAnalysisError("Function '" + funcName + "' expects " + std::to_string(expectedArgCount) +
+                                " argument(s) but " + std::to_string(args_.size()) + " provided",
+                            span_);
     } else {
       // ensure argument types match parameter types
       for (size_t i = 0; i < args_.size(); ++i) {
@@ -352,7 +354,8 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
 
         if (!argType) {
           ctx.emitAnalysisError("Type of argument " + std::to_string(i + 1) + " in call to '" + funcName +
-                          "' could not be determined", span_);
+                                    "' could not be determined",
+                                span_);
         }
         if (!paramType) {
           ctx.emitAnalysisError("Type of parameter '" + (params)[i].first + "' could not be determined", span_);
@@ -361,22 +364,13 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
         if (argType && paramType) {
           // this is messy:
 
-          auto argPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(argType);
-          auto paramPrimType = std::dynamic_pointer_cast<PrimitiveTypeNode>(paramType);
-
-          if (argPrimType && paramPrimType) {
-            if (argPrimType->isSigned() != paramPrimType->isSigned()) {
-              ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " in call to '" + funcName +
-                              "' has incompatible signedness (parameter '" + (params)[i].first + "')", span_);
-            }
-          }
-
           auto argPtrType = std::dynamic_pointer_cast<PointerTypeNode>(argType);
           auto paramPtrType = std::dynamic_pointer_cast<PointerTypeNode>(paramType);
 
           if ((argPtrType && !paramPtrType) || (!argPtrType && paramPtrType)) {
             ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
-                            "' (parameter '" + (params)[i].first + "')", span_);
+                                      "' (parameter '" + (params)[i].first + "')",
+                                  span_);
           }
 
           auto argArrType = std::dynamic_pointer_cast<ArrayTypeNode>(argType);
@@ -384,7 +378,8 @@ void FunctionCall::analyze(AnalysisContext &ctx) {
 
           if ((argArrType && !paramArrType) || (!argArrType && paramArrType)) {
             ctx.emitAnalysisError("Argument " + std::to_string(i + 1) + " type mismatch in call to '" + funcName +
-                            "' (parameter '" + (params)[i].first + "')", span_);
+                                      "' (parameter '" + (params)[i].first + "')",
+                                  span_);
           }
         }
       }
@@ -428,12 +423,6 @@ void BinaryOperation::analyze(AnalysisContext &ctx) {
     return;
   }
 
-  // ensure same signedness
-  if (leftType->isSigned() != rightType->isSigned()) {
-    ctx.emitAnalysisError("Binary operation with operands of different signedness", span_);
-    return;
-  }
-
   // for comparison operations the result type is bool
   if (opType_ == BinaryOperationType::Less || opType_ == BinaryOperationType::More ||
       opType_ == BinaryOperationType::Equal) {
@@ -446,6 +435,19 @@ void BinaryOperation::analyze(AnalysisContext &ctx) {
   if (!type_) {
     ctx.emitAnalysisError("Cannot determine result type of binary operation", span_);
   }
+}
+
+void SizeOf::analyze(AnalysisContext &ctx) {
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
+
+  if (!targetType_) {
+    ctx.emitAnalysisError("SizeOf with null target type", span_);
+    return;
+  }
+
+  // sizeof always results in an unsigned long
+  type_ = std::make_shared<PrimitiveTypeNode>(PrimitiveType::Long, false, span_);
 }
 
 } // namespace axen::ast

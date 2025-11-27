@@ -440,4 +440,17 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
     ctx.emitCodegenError("Unexpected binary operation type");
   }
 }
+
+llvm::Value *SizeOf::codeGen(CodegenContext &ctx) {
+  llvm::Type *ty = targetType_->codeGen(ctx);
+
+  if (!ty) {
+    ctx.emitCodegenError("Failed to generate type for sizeof operator");
+  }
+
+  llvm::DataLayout dataLayout = ctx.module->getDataLayout();
+  uint64_t sizeInBytes = dataLayout.getTypeAllocSize(ty);
+
+  return llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), sizeInBytes);
+}
 } // namespace axen::ast

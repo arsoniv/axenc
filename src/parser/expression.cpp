@@ -89,6 +89,11 @@ std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::Token
     return std::make_unique<ast::NullptrLiteral>(makeSpan(tok));
   }
 
+  case lexer::TokenType::SizeOf: {
+    auto tok = expect(lexer::TokenType::SizeOf);
+    return std::make_unique<ast::SizeOf>(parseType(), makeSpan(tok));
+  }
+
   case lexer::TokenType::Minus:
     lexer_->consume();
     if (lexer_->peekT(lexer::TokenType::FloatLit)) {
