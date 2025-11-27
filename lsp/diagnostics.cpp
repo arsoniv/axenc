@@ -21,7 +21,9 @@ void Lsp::publishDiagnostics(const std::string &uri, const std::string &text) {
 
   bool first_diagnostic = true;
 
-  auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath);
+  std::vector<std::string> includePaths = std::vector<std::string>{"/usr/include/axen"};
+  auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath, std::move(includePaths));
+
   // parse
   parser->parse();
 

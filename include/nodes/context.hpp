@@ -48,11 +48,16 @@ struct AnalysisContext {
 
   void addContextSymbol(const std::string &name, SymbolType type) { contextSymbols[name] = type; }
 
-  bool isSpanBeforeCursor(const error::SourceSpan &span) {
+  bool isSymbolAvailableAtCursor(const error::SourceSpan &span) {
+    if (span.file != currentFile) {
+      return true;
+    }
+
     if (span.endRow < cRow)
       return true;
     if (span.endRow == cRow && span.endCol < cCol)
       return true;
+
     return false;
   }
 

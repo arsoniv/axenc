@@ -18,6 +18,9 @@
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "error.hpp"
 #include "nodes/context.hpp"
@@ -68,7 +71,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::unique_ptr<axen::parser::Parser> parser = std::make_unique<axen::parser::Parser>(std::move(sourceCode), srcPath);
+  std::vector<std::string> includePaths = std::vector<std::string>{"/usr/include/axen"};
+
+  std::unique_ptr<axen::parser::Parser> parser =
+      std::make_unique<axen::parser::Parser>(std::move(sourceCode), srcPath, std::move(includePaths));
 
   // parse
   parser->parse();

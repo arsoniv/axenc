@@ -18,7 +18,6 @@ namespace axen::parser {
 void Parser::parse() {
   lexer_ = std::make_shared<lexer::Lexer>(sourceCode_);
   currentFileName_ = rootFilePath_;
-
   if (!rootFilePath_.empty()) {
     // the file might not exist on disk (lsp)
     try {
@@ -33,14 +32,42 @@ void Parser::parse() {
       importedFiles_.insert(rootFilePath_);
     }
   }
-
   processImports();
   parseFile();
-
   // add lexer errors
   for (const auto &error : lexer_->getErrors()) {
     errors_.push_back(error);
   }
+}
+
+std::filesystem::path Parser::resolveImportPath(const std::string &importFile, const std::string &currentFile) {
+  std::filesystem::path importPath = std::filesystem::path(importFile);
+  std::error_code ec;
+
+  if (importPath.is_absolute()) {
+    if (std::filesystem::exists(importPath, ec) && !ec && std::filesystem::is_regular_file(importPath, ec) && !ec) {
+      return importPath;
+    }
+    return {};
+  }
+
+  if (!currentFile.empty()) {
+    std::filesystem::path currentDir = std::filesystem::path(currentFile).parent_path();
+    std::filesystem::path relativePath = currentDir / importPath;
+    if (std::filesystem::exists(relativePath, ec) && !ec && std::filesystem::is_regular_file(relativePath, ec) && !ec) {
+      return relativePath;
+    }
+  }
+
+  for (const auto &includePath : includePaths_) {
+    std::filesystem::path candidatePath = std::filesystem::path(includePath) / importPath;
+    if (std::filesystem::exists(candidatePath, ec) && !ec && std::filesystem::is_regular_file(candidatePath, ec) &&
+        !ec) {
+      return candidatePath;
+    }
+  }
+
+  return {};
 }
 
 void Parser::processImports() {
@@ -50,41 +77,68 @@ void Parser::processImports() {
   while (!lexer_->peekT(lexer::TokenType::EndOfFile)) {
     if (lexer_->peekT(lexer::TokenType::Import)) {
       lexer_->consume();
-
       std::string importFile = expect(lexer::TokenType::StringLit).src;
       expect(lexer::TokenType::Semi);
 
-      std::filesystem::path importPath = std::filesystem::path(importFile);
+      try {
+        std::filesystem::path importPath = resolveImportPath(importFile, savedFileName);
 
-      if (!importPath.is_absolute() && !savedFileName.empty()) {
-        std::filesystem::path currentDir = std::filesystem::path(savedFileName).parent_path();
-        importPath = currentDir / importPath;
+        if (importPath.empty()) {
+          emitSyntaxError("Cannot import nonexistent file: '" + importFile + "'");
+          continue;
+        }
+
+        std::string canonicalPath;
+        std::error_code ec;
+        try {
+          canonicalPath = std::filesystem::canonical(importPath, ec).string();
+          if (ec) {
+            emitSyntaxError("Cannot resolve canonical path for: '" + importFile + "'");
+            continue;
+          }
+        } catch (const std::filesystem::filesystem_error &e) {
+          emitSyntaxError("Filesystem error resolving: '" + importFile + "' - " + e.what());
+          continue;
+        }
+
+        if (importedFiles_.find(canonicalPath) != importedFiles_.end()) {
+          continue;
+        }
+
+        importedFiles_.insert(canonicalPath);
+
+        std::ifstream in(importPath, std::ios::binary);
+        if (!in.is_open() || !in.good()) {
+          emitSyntaxError("Cannot open file: '" + importFile + "'");
+          importedFiles_.erase(canonicalPath);
+          continue;
+        }
+
+        std::ostringstream ss;
+        ss << in.rdbuf();
+
+        if (in.bad()) {
+          emitSyntaxError("Error reading file: '" + importFile + "'");
+          importedFiles_.erase(canonicalPath);
+          continue;
+        }
+
+        std::string sourceCode = ss.str();
+
+        lexer_ = std::make_shared<lexer::Lexer>(sourceCode);
+        currentFileName_ = canonicalPath;
+        processImports();
+        parseFile();
+
+      } catch (const std::filesystem::filesystem_error &e) {
+        emitSyntaxError("Filesystem error processing import '" + importFile + "': " + e.what());
+      } catch (const std::exception &e) {
+        emitSyntaxError("Error processing import '" + importFile + "': " + e.what());
       }
-
-      if (!std::filesystem::exists(importPath))
-        emitSyntaxError("Cannot import nonexistent file: '" + importFile + "'");
-
-      std::string canonicalPath = std::filesystem::canonical(importPath).string();
-
-      if (importedFiles_.find(canonicalPath) != importedFiles_.end()) {
-        continue;
-      }
-
-      importedFiles_.insert(canonicalPath);
-
-      std::ifstream in(importPath);
-      std::ostringstream ss;
-      ss << in.rdbuf();
-      std::string sourceCode = ss.str();
-
-      lexer_ = std::make_shared<lexer::Lexer>(sourceCode);
-      currentFileName_ = canonicalPath;
-
-      processImports();
-      parseFile();
 
       lexer_ = savedLexer;
       currentFileName_ = savedFileName;
+
     } else {
       break;
     }

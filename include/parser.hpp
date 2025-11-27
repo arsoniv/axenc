@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <set>
@@ -20,8 +21,8 @@ namespace axen::parser {
 
 class Parser {
 public:
-  Parser(std::string &&sourceCode, std::string filePath = "")
-      : sourceCode_(std::move(sourceCode)), rootFilePath_(std::move(filePath)) {
+  Parser(std::string &&sourceCode, std::string filePath = "", std::vector<std::string> &&includePaths = {})
+      : sourceCode_(std::move(sourceCode)), rootFilePath_(std::move(filePath)), includePaths_(std::move(includePaths)) {
 
     error::SourceSpan builtinSpan{};
     registerPrimitiveType("bool",
@@ -83,6 +84,7 @@ private:
   void parseClass(error::SourceSpan span);
   void parseFile();
   void parseFunctions();
+  std::filesystem::path resolveImportPath(const std::string &importFile, const std::string &currentFile);
   void processImports();
   std::unique_ptr<ast::FunctionNode> parseFunction();
   std::unique_ptr<ast::ExpressionNode> parseExpression(lexer::TokenType terminator);
@@ -222,6 +224,7 @@ private:
 
   // for tracking imports
   std::set<std::string> importedFiles_;
+  std::vector<std::string> includePaths_;
 
   std::vector<error::ErrorInfo> errors_;
 };

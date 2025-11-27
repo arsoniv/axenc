@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -78,7 +79,8 @@ void Lsp::handleCompletion(const std::string &id, json_object_s *params) {
   completions << "[";
   bool firstItem = true;
 
-  auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath);
+  std::vector<std::string> includePaths = std::vector<std::string>{"/usr/include/axen"};
+  auto parser = std::make_unique<axen::parser::Parser>(std::string(text), filePath, std::move(includePaths));
   try {
     parser->parse();
 
@@ -165,6 +167,8 @@ void Lsp::handleCompletion(const std::string &id, json_object_s *params) {
   }
 
   completions << "]";
+
+  fprintf(stderr, "%s", completions.str().c_str());
 
   std::ostringstream response;
   response << "{\"isIncomplete\":false,\"items\":" << completions.str() << "}";

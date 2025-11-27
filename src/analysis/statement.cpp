@@ -35,7 +35,7 @@ void VariableDeclaration::analyze(AnalysisContext &ctx) {
     }
   }
 
-  if (ctx.isSpanBeforeCursor(this->getSpan())) {
+  if (ctx.isSymbolAvailableAtCursor(this->getSpan())) {
     ctx.addContextSymbol(name_, SymbolType::Variable);
   }
   ctx.declareVariable(name_, type_);
