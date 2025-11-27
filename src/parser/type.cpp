@@ -1,4 +1,5 @@
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -28,7 +29,7 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
       expect(lexer::TokenType::LParen);
 
       auto params = std::vector<std::shared_ptr<ast::TypeNode>>();
-      while (!lexer_->peekT(lexer::TokenType::RParen)) {
+      while (!lexer_->peekT(lexer::TokenType::RParen) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
 
         auto paramType = parseType();
         if (!paramType) {
@@ -58,7 +59,12 @@ std::shared_ptr<ast::TypeNode> Parser::parseType() {
 
       // both base 10 and 16 can be used
       int base = (intStr.size() > 2 && intStr[0] == '0' && (intStr[1] == 'x' || intStr[1] == 'X')) ? 16 : 10;
-      arrayLen = std::stoi(intStr, nullptr, base);
+
+      try {
+        arrayLen = std::stoi(intStr, nullptr, base);
+      } catch (std::invalid_argument &e) {
+        emitSyntaxError("Invalid array length: " + intStr);
+      }
 
       endToken = expect(lexer::TokenType::RBracket);
     }
