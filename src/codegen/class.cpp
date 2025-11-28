@@ -1,5 +1,4 @@
 
-
 #include <llvm/IR/DerivedTypes.h>
 
 #include "nodes/class.hpp"

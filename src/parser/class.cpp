@@ -18,7 +18,7 @@ void Parser::parseClass(error::SourceSpan span) {
 
   auto savedState = lexer_->saveState();
 
-  std::map<std::string, std::shared_ptr<ast::TypeNode>> members;
+  std::vector<std::pair<std::string, std::shared_ptr<ast::TypeNode>>> members;
 
   // first pass, parse member variables
   while (!lexer_->peekT(lexer::TokenType::RBrace) && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
@@ -30,7 +30,7 @@ void Parser::parseClass(error::SourceSpan span) {
     if (!lexer_->peekT(lexer::TokenType::LParen)) {
       expect(lexer::TokenType::Semi);
 
-      members[token.src] = type;
+      members.push_back({token.src, type});
       continue;
     }
 
