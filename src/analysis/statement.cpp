@@ -113,6 +113,17 @@ void Return::analyze(AnalysisContext &ctx) {
   }
 }
 
+// TODO: add analysis for break and continue
+void Break::analyze(AnalysisContext &ctx) {
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
+}
+
+void Continue::analyze(AnalysisContext &ctx) {
+  ctx.currentRow = span_.startRow;
+  ctx.currentCol = span_.startCol;
+}
+
 void If::analyze(AnalysisContext &ctx) {
   ctx.currentRow = span_.startRow;
   ctx.currentCol = span_.startCol;

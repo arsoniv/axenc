@@ -52,6 +52,24 @@ std::unique_ptr<ast::StatementNode> Parser::parseStatement() {
       return std::make_unique<ast::Return>(std::move(returnValue), span);
     }
   }
+  case lexer::TokenType::Break: {
+    auto tok = lexer_->peek();
+    lexer_->consume();
+    auto span = makeSpan(tok);
+
+    expect(lexer::TokenType::Semi);
+
+    return std::make_unique<ast::Break>(span);
+  }
+  case lexer::TokenType::Continue: {
+    auto tok = lexer_->peek();
+    lexer_->consume();
+    auto span = makeSpan(tok);
+
+    expect(lexer::TokenType::Semi);
+
+    return std::make_unique<ast::Continue>(span);
+  }
   case lexer::TokenType::If: {
     auto tok = lexer_->peek();
     lexer_->consume();

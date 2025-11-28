@@ -95,6 +95,28 @@ void Return::codeGen(CodegenContext &ctx) {
   }
 }
 
+void Break::codeGen(CodegenContext &ctx) {
+
+  llvm::BasicBlock *exitBlock = ctx.getCurrentLoopExit();
+
+  if (!exitBlock) {
+    ctx.emitCodegenError("'break' statement not within a loop");
+  }
+
+  ctx.builder.CreateBr(exitBlock);
+}
+
+void Continue::codeGen(CodegenContext &ctx) {
+
+  llvm::BasicBlock *continueBlock = ctx.getCurrentLoopContinue();
+
+  if (!continueBlock) {
+    ctx.emitCodegenError("'continue' statement not within a loop");
+  }
+
+  ctx.builder.CreateBr(continueBlock);
+}
+
 void If::codeGen(CodegenContext &ctx) {
 
   llvm::Function *parentFunction = ctx.builder.GetInsertBlock()->getParent();
@@ -175,11 +197,20 @@ void While::codeGen(CodegenContext &ctx) {
   ctx.builder.CreateCondBr(condValue, bodyBB, exitBB);
 
   ctx.builder.SetInsertPoint(bodyBB);
+
+  ctx.pushLoopExit(exitBB);
+  ctx.pushLoopContinue(condBB);
+
   for (auto &stmt : body_) {
     stmt->codeGen(ctx);
   }
 
-  ctx.builder.CreateBr(condBB);
+  ctx.popLoopExit();
+  ctx.popLoopContinue();
+
+  if (!ctx.builder.GetInsertBlock()->getTerminator()) {
+    ctx.builder.CreateBr(condBB);
+  }
 
   ctx.builder.SetInsertPoint(exitBB);
 }

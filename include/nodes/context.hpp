@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/IR/BasicBlock.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -119,6 +120,8 @@ struct CodegenContext {
   // each scope map element is a variable with its AllocaInst and allocated type
   std::vector<std::map<std::string, llvm::AllocaInst *>> scopes;
   std::map<std::string, std::pair<llvm::StructType *, std::vector<std::string>>> namedStructs;
+  std::vector<llvm::BasicBlock *> loopExitStack;
+  std::vector<llvm::BasicBlock *> loopContinueStack;
 
   CodegenContext(const std::string &moduleName)
       : builder(llvmContext), module(std::make_unique<llvm::Module>(moduleName, llvmContext)) {}
@@ -132,6 +135,32 @@ struct CodegenContext {
   void popScope() {
     if (!scopes.empty())
       scopes.pop_back();
+  }
+
+  void pushLoopExit(llvm::BasicBlock *exitBlock) { loopExitStack.push_back(exitBlock); }
+
+  void popLoopExit() {
+    if (!loopExitStack.empty())
+      loopExitStack.pop_back();
+  }
+
+  llvm::BasicBlock *getCurrentLoopExit() {
+    if (loopExitStack.empty())
+      return nullptr;
+    return loopExitStack.back();
+  }
+
+  void pushLoopContinue(llvm::BasicBlock *continueBlock) { loopContinueStack.push_back(continueBlock); }
+
+  void popLoopContinue() {
+    if (!loopContinueStack.empty())
+      loopContinueStack.pop_back();
+  }
+
+  llvm::BasicBlock *getCurrentLoopContinue() {
+    if (loopContinueStack.empty())
+      return nullptr;
+    return loopContinueStack.back();
   }
 
   void declareVariable(const std::string &name, llvm::AllocaInst *alloca) { scopes.back()[name] = alloca; }

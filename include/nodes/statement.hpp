@@ -20,7 +20,7 @@ public:
   virtual void analyze(AnalysisContext &ctx) = 0;
   virtual void codeGen(CodegenContext &ctx) = 0;
 
-  const error::SourceSpan& getSpan() const { return span_; }
+  const error::SourceSpan &getSpan() const { return span_; }
 
 protected:
   error::SourceSpan span_;
@@ -28,7 +28,8 @@ protected:
 
 class VariableDeclaration : public StatementNode {
 public:
-  VariableDeclaration(std::shared_ptr<TypeNode> &type, std::string name, std::unique_ptr<ExpressionNode> &&initialValue, error::SourceSpan span)
+  VariableDeclaration(std::shared_ptr<TypeNode> &type, std::string name, std::unique_ptr<ExpressionNode> &&initialValue,
+                      error::SourceSpan span)
       : type_(type), name_(std::move(name)), initialValue_(std::move(initialValue)), StatementNode(span) {};
   void analyze(AnalysisContext &ctx) override;
   void codeGen(CodegenContext &ctx) override;
@@ -44,7 +45,8 @@ private:
 
 class AssignmentStatement : public StatementNode {
 public:
-  AssignmentStatement(std::unique_ptr<ExpressionNode> &&target, std::unique_ptr<ExpressionNode> &&value, error::SourceSpan span)
+  AssignmentStatement(std::unique_ptr<ExpressionNode> &&target, std::unique_ptr<ExpressionNode> &&value,
+                      error::SourceSpan span)
       : target_(std::move(target)), value_(std::move(value)), StatementNode(span) {}
 
   void analyze(AnalysisContext &ctx) override;
@@ -57,7 +59,8 @@ private:
 
 class Return : public StatementNode {
 public:
-  Return(std::unique_ptr<ExpressionNode> &&value, error::SourceSpan span) : value_(std::move(value)), StatementNode(span) {}
+  Return(std::unique_ptr<ExpressionNode> &&value, error::SourceSpan span)
+      : value_(std::move(value)), StatementNode(span) {}
   void analyze(AnalysisContext &ctx) override;
   void codeGen(CodegenContext &ctx) override;
 
@@ -65,11 +68,26 @@ private:
   std::unique_ptr<ExpressionNode> value_;
 };
 
+class Break : public StatementNode {
+public:
+  Break(error::SourceSpan span) : StatementNode(span) {}
+  void analyze(AnalysisContext &ctx) override;
+  void codeGen(CodegenContext &ctx) override;
+};
+
+class Continue : public StatementNode {
+public:
+  Continue(error::SourceSpan span) : StatementNode(span) {}
+  void analyze(AnalysisContext &ctx) override;
+  void codeGen(CodegenContext &ctx) override;
+};
+
 class If : public StatementNode {
 public:
   If(std::unique_ptr<ExpressionNode> &&condition, std::vector<std::unique_ptr<StatementNode>> &&trueBody,
      std::optional<std::vector<std::unique_ptr<StatementNode>>> &&falseBody, error::SourceSpan span)
-      : condition_(std::move(condition)), trueBody_(std::move(trueBody)), falseBody_(std::move(falseBody)), StatementNode(span) {}
+      : condition_(std::move(condition)), trueBody_(std::move(trueBody)), falseBody_(std::move(falseBody)),
+        StatementNode(span) {}
   void analyze(AnalysisContext &ctx) override;
   void codeGen(CodegenContext &ctx) override;
 
@@ -81,7 +99,8 @@ private:
 
 class While : public StatementNode {
 public:
-  While(std::unique_ptr<ExpressionNode> &&condition, std::vector<std::unique_ptr<StatementNode>> &&body, error::SourceSpan span)
+  While(std::unique_ptr<ExpressionNode> &&condition, std::vector<std::unique_ptr<StatementNode>> &&body,
+        error::SourceSpan span)
       : condition_(std::move(condition)), body_(std::move(body)), StatementNode(span) {}
   void analyze(AnalysisContext &ctx) override;
   void codeGen(CodegenContext &ctx) override;
@@ -93,7 +112,7 @@ private:
 
 class ExpressionStatement : public StatementNode {
 public:
-  ExpressionStatement(std::unique_ptr<ExpressionNode> &&expression, error::SourceSpan span) 
+  ExpressionStatement(std::unique_ptr<ExpressionNode> &&expression, error::SourceSpan span)
       : expression_(std::move(expression)), StatementNode(span) {}
   void analyze(AnalysisContext &ctx) override;
   void codeGen(CodegenContext &ctx) override;
