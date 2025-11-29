@@ -10,29 +10,33 @@
 
 namespace axen::parser {
 
-static int getOperatorPrecedence(lexer::TokenType type) {
+static int getOperatorPrecedence(ast::BinaryOperationType type) {
   switch (type) {
-  case lexer::TokenType::Asterisk:
-  case lexer::TokenType::Slash:
-  case lexer::TokenType::Percent:
-    return 20;
-  case lexer::TokenType::Plus:
-  case lexer::TokenType::Minus:
-    return 10;
-  case lexer::TokenType::Less:
-  case lexer::TokenType::Greater:
-    return 5;
-  case lexer::TokenType::Equals:
+  case ast::BinaryOperationType::Multiply:
+  case ast::BinaryOperationType::Divide:
+  case ast::BinaryOperationType::Modulo:
+    return 4;
+  case ast::BinaryOperationType::Add:
+  case ast::BinaryOperationType::Subtract:
     return 3;
-  case lexer::TokenType::Ampersand:
+  case ast::BinaryOperationType::Less:
+  case ast::BinaryOperationType::More:
+  case ast::BinaryOperationType::Equal:
+  case ast::BinaryOperationType::NotEqual:
+  case ast::BinaryOperationType::LessEqual:
+  case ast::BinaryOperationType::MoreEqual:
+    return 2;
+  case ast::BinaryOperationType::And:
     return 1;
+  case ast::BinaryOperationType::Or:
+    return 0;
   default:
     return -1;
   }
 }
 
-ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
-  switch (type) {
+ast::BinaryOperationType Parser::parseBinaryOp() {
+  switch (lexer_->peek().type) {
   case lexer::TokenType::Plus:
     return ast::BinaryOperationType::Add;
   case lexer::TokenType::Minus:
@@ -44,17 +48,67 @@ ast::BinaryOperationType Parser::tokenToBinaryOp(lexer::TokenType type) {
   case lexer::TokenType::Percent:
     return ast::BinaryOperationType::Modulo;
   case lexer::TokenType::Less:
-    return ast::BinaryOperationType::Less;
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Equals:
+      return ast::BinaryOperationType::LessEqual;
+    case lexer::TokenType::Exclamation:
+      return ast::BinaryOperationType::MoreEqual;
+    default:
+      return ast::BinaryOperationType::Less;
+    }
   case lexer::TokenType::Greater:
-    return ast::BinaryOperationType::More;
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Equals:
+      return ast::BinaryOperationType::MoreEqual;
+    case lexer::TokenType::Exclamation:
+      return ast::BinaryOperationType::LessEqual;
+    default:
+      return ast::BinaryOperationType::More;
+    }
   case lexer::TokenType::Equals:
-    return ast::BinaryOperationType::Equal;
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Equals:
+      return ast::BinaryOperationType::Equal;
+    case lexer::TokenType::Exclamation:
+      return ast::BinaryOperationType::NotEqual;
+    case lexer::TokenType::Less:
+      return ast::BinaryOperationType::LessEqual;
+    case lexer::TokenType::Greater:
+      return ast::BinaryOperationType::MoreEqual;
+    default:
+      break;
+    }
+  case lexer::TokenType::Exclamation:
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Equals:
+      return ast::BinaryOperationType::NotEqual;
+    case lexer::TokenType::Less:
+      return ast::BinaryOperationType::MoreEqual;
+    case lexer::TokenType::Greater:
+      return ast::BinaryOperationType::LessEqual;
+    default:
+      return ast::BinaryOperationType::Not;
+      break;
+    }
   case lexer::TokenType::Ampersand:
-    return ast::BinaryOperationType::And;
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Ampersand:
+      return ast::BinaryOperationType::And;
+    default:
+      break;
+    }
+  case lexer::TokenType::Pipe:
+    switch (lexer_->peek(1).type) {
+    case lexer::TokenType::Pipe:
+      return ast::BinaryOperationType::Or;
+    default:
+      break;
+    }
   default:
-    emitSyntaxError("Invalid binary operator");
-    return ast::BinaryOperationType::Add; // unreachable
+    break;
   }
+  emitSyntaxError("Invalid binary operator");
+  return ast::BinaryOperationType::Add; // unreachable
 }
 
 std::unique_ptr<ast::ExpressionNode> Parser::parsePrimaryExpression(lexer::TokenType terminator) {
@@ -200,19 +254,29 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
   while (!isTerminator() && !lexer_->peekT(lexer::TokenType::EndOfFile)) {
     auto tokType = lexer_->peek().type;
 
-    if (tokType == lexer::TokenType::Equals && !lexer_->peekT(lexer::TokenType::Equals, 1)) {
-      emitSyntaxError("Variable assignment is not an expression, did you mean '=='?");
-    }
+    ast::BinaryOperationType type = parseBinaryOp();
 
-    int tokPrec = getOperatorPrecedence(tokType);
+    int tokPrec = getOperatorPrecedence(type);
     if (tokPrec < exprPrec) {
       return lhs;
     }
 
-    if (tokType == lexer::TokenType::Equals || tokType == lexer::TokenType::Ampersand) {
+    switch (type) {
+    case ast::BinaryOperationType::And:
+    case ast::BinaryOperationType::Equal:
+    case ast::BinaryOperationType::NotEqual:
+    case ast::BinaryOperationType::LessEqual:
+    case ast::BinaryOperationType::MoreEqual:
+    case ast::BinaryOperationType::Or:
       lexer_->consume();
-      lexer_->consume();
-    } else {
+    case ast::BinaryOperationType::Add:
+    case ast::BinaryOperationType::Subtract:
+    case ast::BinaryOperationType::Multiply:
+    case ast::BinaryOperationType::Divide:
+    case ast::BinaryOperationType::Modulo:
+    case ast::BinaryOperationType::Less:
+    case ast::BinaryOperationType::More:
+    case ast::BinaryOperationType::Not:
       lexer_->consume();
     }
 
@@ -221,20 +285,8 @@ std::unique_ptr<ast::ExpressionNode> Parser::parseBinaryOpRHS(int exprPrec, std:
       return nullptr;
     }
 
-    auto nextTokType = lexer_->peek().type;
-    if (!isTerminator()) {
-      if (nextTokType == lexer::TokenType::Equals && !lexer_->peekT(lexer::TokenType::Equals, 1)) {
-      } else {
-        int nextPrec = getOperatorPrecedence(nextTokType);
-        if (nextPrec > tokPrec) {
-          rhs = parseBinaryOpRHS(tokPrec + 1, std::move(rhs), terminator);
-        }
-      }
-    }
-
     auto tok = lexer_->peek();
-    lhs = std::make_unique<ast::BinaryOperation>(tokenToBinaryOp(tokType), std::move(lhs), std::move(rhs),
-                                                 lhs->getType(), makeSpan(tok));
+    lhs = std::make_unique<ast::BinaryOperation>(type, std::move(lhs), std::move(rhs), lhs->getType(), makeSpan(tok));
   }
 
   return lhs;

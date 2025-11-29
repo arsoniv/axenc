@@ -418,6 +418,36 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
       ctx.emitCodegenError("Comparison requires operands of the same type");
     }
 
+  case BinaryOperationType::LessEqual:
+    if (L->getType()->isPointerTy() && R->getType()->isPointerTy()) {
+      return ctx.builder.CreateICmpULE(L, R);
+    } else if (L->getType()->isFloatingPointTy() && R->getType()->isFloatingPointTy()) {
+      return ctx.builder.CreateFCmpOLE(L, R, "fcmpole");
+    } else if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      if (operandIsSigned) {
+        return ctx.builder.CreateICmpSLE(L, R, "cmpsle");
+      } else {
+        return ctx.builder.CreateICmpULE(L, R, "cmpule");
+      }
+    } else {
+      ctx.emitCodegenError("Comparison requires operands of the same type");
+    }
+
+  case BinaryOperationType::MoreEqual:
+    if (L->getType()->isPointerTy() && R->getType()->isPointerTy()) {
+      return ctx.builder.CreateICmpUGE(L, R);
+    } else if (L->getType()->isFloatingPointTy() && R->getType()->isFloatingPointTy()) {
+      return ctx.builder.CreateFCmpOGE(L, R, "fcmpoge");
+    } else if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      if (operandIsSigned) {
+        return ctx.builder.CreateICmpSGE(L, R, "cmpsge");
+      } else {
+        return ctx.builder.CreateICmpUGE(L, R, "cmpuge");
+      }
+    } else {
+      ctx.emitCodegenError("Comparison requires operands of the same type");
+    }
+
   case BinaryOperationType::Equal:
     if (L->getType()->isPointerTy() && R->getType()->isPointerTy()) {
       return ctx.builder.CreateICmpEQ(L, R);
@@ -429,6 +459,17 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
       ctx.emitCodegenError("Equality comparison requires operands of the same type");
     }
 
+  case BinaryOperationType::NotEqual:
+    if (L->getType()->isPointerTy() && R->getType()->isPointerTy()) {
+      return ctx.builder.CreateICmpNE(L, R);
+    } else if (L->getType()->isFloatingPointTy() && R->getType()->isFloatingPointTy()) {
+      return ctx.builder.CreateFCmpONE(L, R, "fcmpone");
+    } else if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      return ctx.builder.CreateICmpNE(L, R);
+    } else {
+      ctx.emitCodegenError("Inequality comparison requires operands of the same type");
+    }
+
   case BinaryOperationType::And:
     if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
       return ctx.builder.CreateAnd(L, R, "andtmp");
@@ -436,9 +477,23 @@ llvm::Value *BinaryOperation::codeGen(CodegenContext &ctx) {
       ctx.emitCodegenError("Bitwise AND requires integer operands");
     }
 
-  default:
-    ctx.emitCodegenError("Unexpected binary operation type");
+  case BinaryOperationType::Or:
+    if (L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+      return ctx.builder.CreateOr(L, R, "ortmp");
+    } else {
+      ctx.emitCodegenError("Bitwise OR requires integer operands");
+    }
+
+  case BinaryOperationType::Not:
+    if (L->getType()->isIntegerTy()) {
+      return ctx.builder.CreateNot(L, "nottmp");
+    } else {
+      ctx.emitCodegenError("Bitwise NOT requires integer operand");
+    }
+    break;
   }
+
+  return nullptr;
 }
 
 llvm::Value *SizeOf::codeGen(CodegenContext &ctx) {

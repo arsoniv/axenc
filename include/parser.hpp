@@ -90,7 +90,7 @@ private:
   std::unique_ptr<ast::ExpressionNode> parseExpression(lexer::TokenType terminator);
   std::unique_ptr<ast::ExpressionNode> parsePrimaryExpression(lexer::TokenType terminator);
 
-  ast::BinaryOperationType tokenToBinaryOp(lexer::TokenType type);
+  ast::BinaryOperationType parseBinaryOp();
   std::unique_ptr<ast::ExpressionNode> parseBinaryOpRHS(int exprPrec, std::unique_ptr<ast::ExpressionNode> lhs,
                                                         lexer::TokenType terminator);
   std::unique_ptr<ast::StatementNode> parseStatement();

@@ -215,6 +215,11 @@ enum class BinaryOperationType {
   Less,
   More,
   Equal,
+  NotEqual,
+  LessEqual,
+  MoreEqual,
+  Or,
+  Not,
 };
 
 class BinaryOperation : public ExpressionNode {

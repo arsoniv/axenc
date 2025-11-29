@@ -50,6 +50,8 @@ enum class TokenType {
   Equals,
   Less,
   Greater,
+  Exclamation,
+  Pipe,
 
   // misc
   Identifier,
@@ -69,7 +71,8 @@ inline const std::unordered_map<char, TokenType> symbolMap = {
     {'[', TokenType::LBracket},  {']', TokenType::RBracket}, {'.', TokenType::Period},   {',', TokenType::Comma},
     {'+', TokenType::Plus},      {'-', TokenType::Minus},    {'*', TokenType::Asterisk}, {'/', TokenType::Slash},
     {'=', TokenType::Equals},    {'<', TokenType::Less},     {'>', TokenType::Greater},  {';', TokenType::Semi},
-    {'&', TokenType::Ampersand}, {'$', TokenType::Dollar},   {'%', TokenType::Percent},
+    {'&', TokenType::Ampersand}, {'$', TokenType::Dollar},   {'%', TokenType::Percent},  {'!', TokenType::Exclamation},
+    {'|', TokenType::Pipe},
 };
 
 inline const std::unordered_map<TokenType, std::string> tokenToKeyword = [] {
