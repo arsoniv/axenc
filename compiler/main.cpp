@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -40,14 +41,14 @@ int main(int argc, char **argv) {
         i++;
       } else {
         fprintf(stderr, "Invalid argument: '%s'\n", argv[i]);
-        return 1;
+        return EXIT_FAILURE;
       }
     }
   }
 
   if (srcFile.empty()) {
     fprintf(stderr, "Missing required argument: -f <source file>\n");
-    return 1;
+    return EXIT_FAILURE;
   }
 
   axen::ast::CodegenContext ctx(srcFile);
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
   std::ifstream in(srcFile);
   if (!in) {
     fprintf(stderr, "Could not open file: '%s'\n", srcPath.string().c_str());
-    return 1;
+    return EXIT_FAILURE;
   }
 
   std::ostringstream ss;
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
 
   if (className.empty()) {
     fprintf(stderr, "Invalid class name derived from file path\n");
-    return 1;
+    return EXIT_FAILURE;
   }
 
   std::vector<std::string> includePaths = std::vector<std::string>{"/usr/include/axen"};
@@ -100,7 +101,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.span.file.c_str(), error.span.startRow,
               error.span.startCol);
     }
-    return 1;
+    return EXIT_FAILURE;
   }
   if (!analysisCtx.errors.empty()) {
     fprintf(stderr, "Semantic analysis found %zu error(s):\n", analysisCtx.errors.size());
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  %s at %s [%d:%d]\n", error.message.c_str(), error.span.file.c_str(), error.span.startRow,
               error.span.startCol);
     }
-    return 1;
+    return EXIT_FAILURE;
   }
 
   // generate code (wrapped in try-catch for codegen exceptions)
@@ -120,15 +121,15 @@ int main(int argc, char **argv) {
       func->codeGen(ctx);
     }
   } catch (const std::runtime_error &e) {
-    std::cerr << e.what() << std::endl;
-    return 1;
+    fprintf(stderr, "Error during code generation: %s\n", e.what());
+    return EXIT_FAILURE;
   }
 
   std::string errorStr;
   llvm::raw_string_ostream errorStream(errorStr);
   if (llvm::verifyModule(*ctx.module, &errorStream)) {
     llvm::errs() << "Module verification failed:\n" << errorStr << "\n";
-    return 1;
+    return EXIT_FAILURE;
   }
 
   if (outputFile.empty()) {
@@ -151,7 +152,7 @@ int main(int argc, char **argv) {
 
     if (!target) {
       llvm::errs() << error;
-      return 1;
+      return EXIT_FAILURE;
     }
 
     auto CPU = "generic";
@@ -168,7 +169,7 @@ int main(int argc, char **argv) {
 
     if (EC) {
       llvm::errs() << "Could not open file: " << EC.message();
-      return 1;
+      return EXIT_FAILURE;
     }
 
     llvm::legacy::PassManager pass;
@@ -176,12 +177,12 @@ int main(int argc, char **argv) {
 
     if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, fileType)) {
       llvm::errs() << "TargetMachine can't emit a file of this type";
-      return 1;
+      return EXIT_FAILURE;
     }
 
     pass.run(*ctx.module);
     dest.flush();
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

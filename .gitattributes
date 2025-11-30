@@ -1,2 +1,3 @@
 *.ax linguist-language=Axen
-include/lsp/json.hpp linguist-vendored
+include/json.h linguist-vendored
+include/cpptoml.h linguist-vendored

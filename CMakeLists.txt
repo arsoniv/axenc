@@ -8,11 +8,26 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
 
+enable_language(ASM)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Building with AddressSanitizer")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
     set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
 endif()
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/axenruntime.o
+    COMMAND ${CMAKE_ASM_COMPILER} -c
+            ${CMAKE_SOURCE_DIR}/runtime/main.s
+            -o ${CMAKE_BINARY_DIR}/axenruntime.o
+    DEPENDS runtime/main.s
+    COMMENT "Assembling axenruntime"
+)
+
+add_custom_target(axenruntime ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/axenruntime.o
+)
 
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM: ${LLVM_PACKAGE_VERSION}")
@@ -27,6 +42,10 @@ target_link_libraries(axenlang PUBLIC LLVM)
 file(GLOB_RECURSE AXENC_SRC_FILES "${CMAKE_SOURCE_DIR}/compiler/*.cpp")
 add_executable(axenc ${AXENC_SRC_FILES})
 target_link_libraries(axenc PRIVATE axenlang)
+
+file(GLOB_RECURSE AXENC_SRC_FILES "${CMAKE_SOURCE_DIR}/buildtool/*.cpp")
+add_executable(axenbt ${AXENC_SRC_FILES})
+target_link_libraries(axenbt PRIVATE axenlang)
 
 file(GLOB_RECURSE AXENLSP_SRC_FILES "${CMAKE_SOURCE_DIR}/lsp/*.cpp")
 add_executable(axenlsp ${AXENLSP_SRC_FILES})
