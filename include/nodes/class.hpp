@@ -8,7 +8,6 @@
 
 #include "context.hpp"
 #include "error.hpp"
-#include "type.hpp"
 
 namespace axen::ast {
 
@@ -20,6 +19,8 @@ public:
 
   llvm::StructType *codeGen(CodegenContext &ctx);
   void analyze(AnalysisContext &ctx);
+
+  void emitHeader(std::ostream &out);
 
   std::shared_ptr<ast::TypeNode> lookupMemberType(const std::string &name) const {
     for (const auto &member : members_) {

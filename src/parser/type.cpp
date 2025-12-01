@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "lexer.hpp"
+#include "nodes/class.hpp"
 #include "nodes/type.hpp"
 #include "parser.hpp"
 
@@ -151,3 +152,6 @@ int Parser::getNextTypeLength() {
 }
 
 } // namespace axen::parser
+
+axen::ast::ClassReferenceNode::ClassReferenceNode(std::shared_ptr<ClassNode> decl, error::SourceSpan span)
+    : TypeNode(span, decl->getName()), decl_(decl) {}

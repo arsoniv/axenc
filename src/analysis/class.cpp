@@ -2,6 +2,7 @@
 
 #include "nodes/class.hpp"
 #include "nodes/context.hpp"
+#include "nodes/type.hpp"
 #include <set>
 
 namespace axen::ast {

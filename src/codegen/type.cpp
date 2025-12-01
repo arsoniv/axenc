@@ -1,6 +1,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Type.h>
 
+#include "nodes/class.hpp"
 #include "nodes/context.hpp"
 #include "nodes/type.hpp"
 

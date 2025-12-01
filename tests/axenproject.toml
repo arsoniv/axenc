@@ -1,1 +1,29 @@
+# name is arbitrary but should be unique among dependencies
 name = "test_project"
+
+# if true the project will be built as a library, if false it will be built as an executable
+# when built as a library the output will be a static library (.a) file
+# when built as an executable the output will be an executable file
+is_library = false
+
+# following section is optional
+[build]
+
+# additional linker arguments (for ld)
+linker_args = ["-lc"]
+
+# following section is optional
+[dependencies]
+
+# format should be: 
+# name = "source"
+# name should be the name of the dependency package (as specified in it's axenproject.toml file), otherwise an error will occur
+# a header for the dependency will be generated with the specified name and can be found in build/dependencies/meta/<name>.axh
+# the generated library can be found in build/dependencies/objects/<name>.a
+# source should be the url to the git repository containing a valid Axen package with the axenproject.toml file in it's root directory
+# for example
+
+math = "http://github.com/arsoniv/axen-math.git"
+
+# the repository will be cloned into build/dependencies/src/<name> and built by the Axen build tool recursively (i.e. if the dependency has it's own dependencies they will be built as well, into the /build/dependencies/src/<name>/dependencies/src/<nested-dependency-name> directory)
+# after the dependency is built the generated header and library will be copied to the appropriate build/dependencies/meta and build/dependencies/objects directories as mentioned above

@@ -70,7 +70,11 @@ llvm::Function *FunctionNode::codeGen(CodegenContext &ctx) {
 
   llvm::Function *function;
 
-  function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, name_, ctx.module.get());
+  if (isExported_) {
+    function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, name_, ctx.module.get());
+  } else {
+    function = llvm::Function::Create(functionType, llvm::Function::InternalLinkage, name_, ctx.module.get());
+  }
 
   if (!function) {
     ctx.emitCodegenError("Failed to create function '" + name_ + "'");

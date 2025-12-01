@@ -3,6 +3,7 @@
 
 #include "nodes/class.hpp"
 #include "nodes/context.hpp"
+#include "nodes/type.hpp"
 
 namespace axen::ast {
 

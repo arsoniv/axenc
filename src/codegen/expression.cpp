@@ -11,6 +11,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/Support/Casting.h>
 
+#include "nodes/class.hpp"
 #include "nodes/context.hpp"
 #include "nodes/expression.hpp"
 

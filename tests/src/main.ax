@@ -1,6 +1,6 @@
 import "helper.ax";
 
-int main() {
+export int main() {
 
   ptr int(int, int) addptr = &add;
 

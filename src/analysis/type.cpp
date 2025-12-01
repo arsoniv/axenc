@@ -1,4 +1,5 @@
 #include "nodes/type.hpp"
+#include "nodes/class.hpp"
 #include "nodes/context.hpp"
 
 namespace axen::ast {

@@ -7,13 +7,12 @@
 #include <llvm/IR/Type.h>
 
 #include "context.hpp"
-#include "nodes/class.hpp"
 
 namespace axen::ast {
 
 class TypeNode {
 public:
-  TypeNode(error::SourceSpan span) : span_(span) {}
+  TypeNode(error::SourceSpan span, std::string typeString) : span_(span), typeString_(typeString) {}
   virtual ~TypeNode() = default;
   virtual void analyze(AnalysisContext &ctx) = 0;
   virtual llvm::Type *codeGen(CodegenContext &ctx) = 0;
@@ -22,7 +21,10 @@ public:
 
   const error::SourceSpan &getSpan() const { return span_; }
 
+  const std::string &getTypeString() const { return typeString_; }
+
 protected:
+  std::string typeString_;
   error::SourceSpan span_;
 };
 
@@ -30,7 +32,23 @@ class FunctionTypeNode : public TypeNode {
 public:
   FunctionTypeNode(std::shared_ptr<TypeNode> returnType, std::vector<std::shared_ptr<TypeNode>> parameters,
                    error::SourceSpan span)
-      : TypeNode(span), returnType_(returnType), parameters_(parameters) {}
+      : TypeNode(span, ""), // temporarily empty
+        returnType_(returnType), parameters_(parameters) {
+    if (!returnType_) {
+      throw std::runtime_error("FunctionTypeNode: returnType is null");
+    }
+
+    std::string typeStr = returnType_->getTypeString() + "(";
+    bool first = true;
+    for (const auto &param : parameters_) {
+      if (!first)
+        typeStr += ", ";
+      typeStr += param ? param->getTypeString() : "<null>";
+      first = false;
+    }
+    typeStr += ")";
+    typeString_ = typeStr;
+  }
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -47,7 +65,8 @@ private:
 
 class PointerTypeNode : public TypeNode {
 public:
-  PointerTypeNode(std::shared_ptr<TypeNode> target, error::SourceSpan span) : TypeNode(span), target_(target) {}
+  PointerTypeNode(std::shared_ptr<TypeNode> target, error::SourceSpan span)
+      : TypeNode(span, target->getTypeString().substr(4)), target_(target) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -63,7 +82,8 @@ private:
 class ArrayTypeNode : public TypeNode {
 public:
   ArrayTypeNode(std::shared_ptr<TypeNode> target, int length, error::SourceSpan span)
-      : TypeNode(span), target_(target), length_(length) {}
+      : TypeNode(span, target->getTypeString() + "[" + std::to_string(length) + "]"), target_(target), length_(length) {
+  }
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -113,7 +133,7 @@ inline const std::unordered_map<std::string, PrimitiveType> stringToPrimitiveTyp
 class PrimitiveTypeNode : public TypeNode {
 public:
   PrimitiveTypeNode(PrimitiveType type, bool isSigned, error::SourceSpan span)
-      : TypeNode(span), type_(type), isSigned_(isSigned) {}
+      : TypeNode(span, primitiveTypeToString.at(type)), type_(type), isSigned_(isSigned) {}
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;
@@ -131,7 +151,7 @@ private:
 
 class ClassReferenceNode : public TypeNode {
 public:
-  ClassReferenceNode(std::shared_ptr<ClassNode> decl, error::SourceSpan span) : TypeNode(span), decl_(decl) {}
+  ClassReferenceNode(std::shared_ptr<ClassNode> decl, error::SourceSpan span);
 
   void analyze(AnalysisContext &ctx) override;
   llvm::Type *codeGen(CodegenContext &ctx) override;

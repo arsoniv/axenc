@@ -24,6 +24,7 @@ enum class TokenType {
   Ptr,
   Nullptr,
   SizeOf,
+  Export,
 
   Import,
   Class,
@@ -63,7 +64,7 @@ inline const std::unordered_map<std::string, TokenType> keywordMap = {
     {"if", TokenType::If},         {"else", TokenType::Else},       {"while", TokenType::While},
     {"ptr", TokenType::Ptr},       {"nullptr", TokenType::Nullptr}, {"import", TokenType::Import},
     {"class", TokenType::Class},   {"typedef", TokenType::Typedef}, {"intdef", TokenType::Intdef},
-    {"sizeof", TokenType::SizeOf},
+    {"sizeof", TokenType::SizeOf}, {"export", TokenType::Export},
 };
 
 inline const std::unordered_map<char, TokenType> symbolMap = {

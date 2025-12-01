@@ -12,6 +12,13 @@ namespace axen::parser {
 
 std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
 
+  bool isPublic = false;
+
+  if (lexer_->peekT(lexer::TokenType::Export)) {
+    isPublic = true;
+    lexer_->consume();
+  }
+
   bool isDetached = currentClassName_.empty();
 
   // type (along with all type modifiers)
@@ -105,6 +112,6 @@ std::unique_ptr<ast::FunctionNode> Parser::parseFunction() {
       makeSpan(startToken.row, startToken.col, nameToken.row, static_cast<int>(nameToken.col + nameToken.src.length()));
   auto functionType = std::make_unique<ast::FunctionTypeNode>(type, paramTypes, functionSpan);
   return std::make_unique<ast::FunctionNode>(name, std::move(functionType), std::move(paramNames), std::move(body),
-                                             functionSpan);
+                                             isPublic, functionSpan);
 }
 } // namespace axen::parser

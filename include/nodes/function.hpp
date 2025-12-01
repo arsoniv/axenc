@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,16 +26,21 @@ namespace axen::ast {
 class FunctionNode {
 public:
   FunctionNode(std::string name, std::shared_ptr<FunctionTypeNode> type, std::vector<std::string> paramNames,
-               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body, error::SourceSpan span)
-      : name_(std::move(name)), type_(type), paramNames_(paramNames), body_(std::move(body)), span_(span) {}
+               std::optional<std::vector<std::unique_ptr<StatementNode>>> &&body, bool isExported,
+               error::SourceSpan span)
+      : name_(std::move(name)), type_(type), paramNames_(paramNames), body_(std::move(body)), isExported_(isExported),
+        span_(span) {}
 
   void analyze(AnalysisContext &ctx);
   void analyzeBody(AnalysisContext &ctx);
 
+  void emitHeader(std::ostream &out);
+
   llvm::Function *codeGen(CodegenContext &ctx);
   void generateFunctionBody(CodegenContext &ctx, llvm::Function *function);
 
-  std::string getName() { return name_; }
+  std::string getName() const { return name_; }
+  bool isExported() const { return isExported_; }
 
   const std::shared_ptr<TypeNode> &getReturnType() { return type_->getReturn(); }
 
@@ -59,6 +65,7 @@ private:
   std::shared_ptr<FunctionTypeNode> type_;
   std::vector<std::string> paramNames_;
   std::optional<std::vector<std::unique_ptr<StatementNode>>> body_;
+  bool isExported_;
   error::SourceSpan span_;
 };
 
